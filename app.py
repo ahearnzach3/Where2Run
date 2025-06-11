@@ -2,6 +2,7 @@
 
 import streamlit as st
 import Where2Run_backend as wr
+from streamlit.components.v1 import html
 
 # App title
 st.markdown("<h1 style='text-align: center;'>🏃‍♂️ Where2Run - Run Route Generator</h1>", unsafe_allow_html=True)
@@ -60,7 +61,8 @@ with tab_loop:
                     route_length_miles = wr.calculate_route_distance(route_coords) / 1609.34
                     map_height = min(800, 400 + int(route_length_miles * 20))
                     
-                    st.components.v1.html(m._repr_html_(), height=map_height, scrolling=True)
+                    map_html = m.get_root().render()
+                    html(map_html, height=map_height, scrolling=True)
  
 
                     wr.print_run_summary(route_coords, elevation_data, st)
@@ -113,7 +115,8 @@ with tab_out_and_back:
                     route_length_miles = wr.calculate_route_distance(route_coords) / 1609.34
                     map_height = min(800, 400 + int(route_length_miles * 20))
                     
-                    st.components.v1.html(m._repr_html_(), height=map_height, scrolling=True)
+                    map_html = m.get_root().render()
+                    html(map_html, height=map_height, scrolling=True)
 
                     wr.print_run_summary(route_coords, elevation_data, st)
 
@@ -165,7 +168,8 @@ with tab_destination:
                     route_length_miles = wr.calculate_route_distance(route_coords) / 1609.34
                     map_height = min(800, 400 + int(route_length_miles * 20))
                     
-                    st.components.v1.html(m._repr_html_(), height=map_height, scrolling=True)
+                    map_html = m.get_root().render()
+                    html(map_html, height=map_height, scrolling=True)
 
                     wr.print_run_summary(route_coords, elevation_data, st)
 
@@ -217,7 +221,8 @@ with tab_destination:
                     route_length_miles = wr.calculate_route_distance(rt_coords) / 1609.34
                     map_height = min(800, 400 + int(route_length_miles * 20))
                     
-                    st.components.v1.html(m._repr_html_(), height=map_height, scrolling=True)
+                    map_html = m.get_root().render()
+                    html(map_html, height=map_height, scrolling=True)
 
                     wr.print_run_summary(rt_coords, elevation_data, st)
 
@@ -251,7 +256,8 @@ with tab_destination:
                         route_length_miles = wr.calculate_route_distance(extended_coords) / 1609.34
                         map_height = min(800, 400 + int(route_length_miles * 20))
                         
-                        st.components.v1.html(m._repr_html_(), height=map_height, scrolling=True)
+                        map_html = m.get_root().render()
+                        html(map_html, height=map_height, scrolling=True)
 
                         wr.print_run_summary(extended_coords, elevation_data, st)
 
