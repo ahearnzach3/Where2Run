@@ -21,7 +21,8 @@ with tab_loop:
     st.markdown("---")
 
     with st.container():
-        start_location = st.text_input("📍 Enter your starting location", key="loop_start")
+        start_location = st.text_input(
+    "📍 Enter your starting location", placeholder="e.g., 400 E Morehead St, Charlotte, NC --> (Dowd YMCA)", key="loop_start")
         start_coords = wr.get_coordinates(start_location) if start_location else None
 
         distance_miles = st.number_input("📏 Desired loop distance (miles)", min_value=1.0, value=6.0, step=0.5, key="loop_distance")
@@ -91,7 +92,8 @@ with tab_out_and_back:
     st.markdown("---")
 
     with st.container():
-        start_location = st.text_input("📍 Enter your starting location", key="out_start")
+        start_location = st.text_input(
+    "📍 Enter your starting location", placeholder="e.g., 400 E Morehead St, Charlotte, NC --> (Dowd YMCA)", key="out_start")
         start_coords = wr.get_coordinates(start_location) if start_location else None
 
         distance_miles = st.number_input("📏 Total out-and-back distance (miles)", min_value=1.0, value=6.0, step=0.5, key="out_distance")
@@ -148,7 +150,8 @@ with tab_destination:
         st.session_state.dest_flow_stage = "initial"
 
     with st.container():
-        start_location = st.text_input("📍 Enter your starting location", key="dest_start")
+        start_location = st.text_input(
+    "📍 Enter your starting location", placeholder="e.g., 400 E Morehead St, Charlotte, NC --> (Dowd YMCA)", key="dest_start")
         start_coords = wr.get_coordinates(start_location) if start_location else None
 
         destination_address = st.text_input("🏁 Enter destination location", key="dest_dest_addr")
