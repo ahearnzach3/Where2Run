@@ -10,14 +10,14 @@ __pycache__/
 # Jupyter checkpoints (if used)
 .ipynb_checkpoints/
 
-# Virtual environments (venv or conda env)
+# Virtual environments
 venv/
 .env/
 
-# Local Streamlit config (optional)
+# Local Streamlit config
 .streamlit/
 
-# Data files (optional — if you don't want large local data on GitHub)
+# Data files
 data/
 *.gpx
 *.csv
