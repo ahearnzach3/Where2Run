@@ -53,3 +53,34 @@ git clone https://github.com/ahearnzach3/Where2Run.git
 cd Where2Run
 pip install -r requirements.txt
 streamlit run app.py
+
+## 📌 Notes
+
+Starting location works best with **full street address** (e.g., `400 E Morehead St, Charlotte, NC (Dowd YMCA)`).
+
+Some business names may not resolve due to limitations of the free OpenStreetMap geocoder.
+
+---
+
+## ✨ Future Ideas
+
+- Safety-focused routing
+- Traffic & obstacle avoidance
+- Shaded & scenic route filters
+- Personalized routes based on user preferences
+- Live re-routing during run
+- Social & community features
+
+---
+
+## 📜 License
+
+MIT License
+
+---
+
+## 🤝 Acknowledgements
+
+- [OpenRouteService](https://openrouteservice.org)
+- [OpenStreetMap](https://www.openstreetmap.org)
+- Streamlit Cloud for deployment
