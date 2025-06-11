@@ -8,7 +8,7 @@ import gpxpy.gpx
 import matplotlib.pyplot as plt
 from geopy.geocoders import Nominatim
 from geopy.distance import geodesic
-from IPython.display import display
+# from IPython.display import display -Presence of this code breaks the Streamlit app
 import numpy as np
 import pandas as pd
 import time
