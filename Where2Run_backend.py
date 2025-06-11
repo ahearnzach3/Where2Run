@@ -16,7 +16,9 @@ import random
 from geopy.exc import GeocoderTimedOut
 
 # 🔑 OpenRouteService API
-API_KEY = "5b3ce3597851110001cf624840cc9f336a3e473fb5993caefcb047d8"  # Replace with your ORS API key
+import streamlit as st
+
+API_KEY = st.secrets["ORS_API_KEY"]
 client = openrouteservice.Client(key=API_KEY)
 
 # 📄 Load Bridges Preset CSV
