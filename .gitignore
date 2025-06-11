@@ -1,1 +1,23 @@
-data/\n.env/nconfig.json/n__pycache__/
+# OS junk files
+.DS_Store
+Thumbs.db
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# Jupyter checkpoints (if used)
+.ipynb_checkpoints/
+
+# Virtual environments (venv or conda env)
+venv/
+.env/
+
+# Local Streamlit config (optional)
+.streamlit/
+
+# Data files (optional — if you don't want large local data on GitHub)
+data/
+*.gpx
+*.csv
