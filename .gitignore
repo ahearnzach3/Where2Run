@@ -19,5 +19,4 @@ venv/
 
 # Data files
 data/
-*.gpx
-*.csv
+data/*.csv  # only ignore CSVs inside the data/ folder
