@@ -80,6 +80,10 @@ def generate_loop_route_with_preset_retry(start_coords, distance_miles, elevatio
     reduction_factor = 0.85
     attempt = 0
 
+    best_coords = None
+    best_total_meters = 0
+    best_ascent = None
+
     while attempt < max_attempts:
         try:
             route_coords = []
@@ -125,22 +129,38 @@ def generate_loop_route_with_preset_retry(start_coords, distance_miles, elevatio
             route_coords += round_trip_coords
 
             total_meters = calculate_route_distance(route_coords)
-            print(f"🕕 Total final route distance: {total_meters / 1609:.2f} miles")
+            elevation_data = get_elevation_for_coords(route_coords)
+            ascent, _ = calculate_ascent_descent(elevation_data)
+            print(f"🕕 Total final route distance: {total_meters / 1609:.2f} miles | Ascent: {ascent:.0f} ft")
 
-            if allowed_range[0] <= total_meters <= allowed_range[1]:
-                print("🌟 Route distance within acceptable range.")
+            # Save first in-range route if Normal
+            if elevation_preference == "Normal" and allowed_range[0] <= total_meters <= allowed_range[1]:
+                print("🌟 Normal route within range — returning immediately.")
                 return route_coords
-            else:
-                print(f"⚠️ Distance out of range: Retrying... ({total_meters / 1609:.2f} mi)")
-                reduction_factor -= 0.05
-                attempt += 1
+
+            # Save best ascent-based route
+            if (
+                best_coords is None
+                or (elevation_preference == "Flat" and ascent < best_ascent)
+                or (elevation_preference == "Hilly" and ascent > best_ascent)
+            ):
+                best_coords = route_coords
+                best_total_meters = total_meters
+                best_ascent = ascent
+
+            reduction_factor -= 0.05
+            attempt += 1
 
         except Exception as e:
             print("❌ Error generating loop route:", e)
             attempt += 1
 
-    print("⚠️ Returning best-effort route despite missed margin.")
-    return route_coords if route_coords else None
+    if best_coords:
+        print(f"⚠️ Returning best ascent-based route. Final Ascent: {best_ascent:.0f} ft")
+    else:
+        print("❌ All attempts failed — returning empty route.")
+    return best_coords if best_coords else None
+
 
 
 # 🚩 Loop-with-Destination v3 — Smart Loop + Destination + Return
