@@ -156,10 +156,16 @@ def generate_loop_route_with_preset_retry(start_coords, distance_miles, elevatio
             attempt += 1
 
     if best_coords:
-        print(f"⚠️ Returning best ascent-based route. Final Ascent: {best_ascent:.0f} ft")
+        best_total_miles = best_total_meters / 1609.34
+        if allowed_range[0] <= best_total_meters <= allowed_range[1]:
+            print(f"✅ Best route selected by elevation within margin. Distance: {best_total_miles:.2f} mi | Ascent: {best_ascent:.0f} ft")
+            return best_coords
+        else:
+            print(f"❌ Best elevation-based route is out of margin: {best_total_miles:.2f} mi (target was ~{distance_miles:.2f} mi)")
+            return None
     else:
-        print("❌ All attempts failed — returning empty route.")
-    return best_coords if best_coords else None
+        print("❌ All attempts failed — no valid route found.")
+        return None
 
 
 
