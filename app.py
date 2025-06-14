@@ -23,16 +23,24 @@ with tab_loop:
     st.markdown("---")
 
     with st.container():
-        # 📍 Start Location with Autocomplete + Placeholder
+        # 📍 Start Location with Autocomplete + Placeholder + Fallback
         typed_start = st.text_input(
             "📍 Start typing your location",
             placeholder="e.g., 400 E Morehead St, Charlotte, NC → (Dowd YMCA)",
             key="loop_start_typed"
         )
+
         start_suggestions = wr.mapbox_autocomplete(typed_start) if typed_start else []
-        start_options = ["🔍 Choose from suggestions..."] + start_suggestions if start_suggestions else []
-        start_location = st.selectbox("Choose your starting location", start_options, key="loop_start_select") if start_options else None
-        start_coords = wr.get_coords_from_place_name(start_location) if start_location and start_location != "🔍 Choose from suggestions..." else None
+        start_location = None
+        if start_suggestions:
+            start_options = ["🔍 Choose from suggestions..."] + start_suggestions
+            start_location = st.selectbox("Choose your starting location", start_options, key="loop_start_select")
+
+        start_coords = None
+        if start_location and start_location != "🔍 Choose from suggestions...":
+            start_coords = wr.get_coords_from_place_name(start_location)
+        elif typed_start:
+            start_coords = wr.get_coords_from_place_name(typed_start)
 
         # 📏 Distance Input
         distance_miles = st.number_input("📏 Desired loop distance (miles)", min_value=1.0, value=6.0, step=0.5, key="loop_distance")
@@ -40,20 +48,27 @@ with tab_loop:
         # 🌉 Bridges preset
         use_preset = st.checkbox("🌉 Include Bridges preset?", key="loop_preset")
 
-        # 📍 Destination Location with Autocomplete + Placeholder
+        # 📍 Destination Location with Autocomplete + Placeholder + Fallback
         include_destination = st.checkbox("📍 Include destination on loop?", key="loop_include_dest")
         destination_coords = None
 
         if include_destination:
             typed_dest = st.text_input(
-                "🏁 Start typing your destination",
+                "🌝 Start typing your destination",
                 placeholder="e.g., Freedom Park, Charlotte NC",
                 key="loop_dest_typed"
             )
+
             dest_suggestions = wr.mapbox_autocomplete(typed_dest) if typed_dest else []
-            dest_options = ["🔍 Choose from suggestions..."] + dest_suggestions if dest_suggestions else []
-            selected_dest = st.selectbox("Choose your destination", dest_options, key="loop_dest_select") if dest_options else None
-            destination_coords = wr.get_coords_from_place_name(selected_dest) if selected_dest and selected_dest != "🔍 Choose from suggestions..." else None
+            selected_dest = None
+            if dest_suggestions:
+                dest_options = ["🔍 Choose from suggestions..."] + dest_suggestions
+                selected_dest = st.selectbox("Choose your destination", dest_options, key="loop_dest_select")
+
+            if selected_dest and selected_dest != "🔍 Choose from suggestions...":
+                destination_coords = wr.get_coords_from_place_name(selected_dest)
+            elif typed_dest:
+                destination_coords = wr.get_coords_from_place_name(typed_dest)
 
     st.markdown("---")
 
@@ -82,10 +97,9 @@ with tab_loop:
                     # Dynamic map height based on route length
                     route_length_miles = wr.calculate_route_distance(route_coords) / 1609.34
                     map_height = min(800, 400 + int(route_length_miles * 20))
-                    
+
                     map_html = m.get_root().render()
                     html(map_html, height=map_height, scrolling=True)
- 
 
                     wr.print_run_summary(route_coords, elevation_data, st)
 
