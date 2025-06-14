@@ -6,3 +6,4 @@ matplotlib
 geopy
 numpy
 pandas
+streamlit-searchbox
