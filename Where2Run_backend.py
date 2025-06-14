@@ -63,7 +63,9 @@ def search_places(query):
     }
     resp = requests.get(url, params=params)
     results = resp.json().get("features", []) if resp.ok else []
-    return [{"name": f["place_name"], "value": f["center"]} for f in results]
+
+    # ✅ This format shows only the name in UI but returns lat/lon
+    return [(f["place_name"], tuple(f["center"][::-1])) for f in results]
 
 # 📄 Load Bridges Preset CSV
 bridges_preset = pd.read_csv("Preset Routes/bridges_preset_route.csv")
