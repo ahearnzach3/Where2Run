@@ -11,43 +11,19 @@ from geopy.distance import geodesic
 # from IPython.display import display -Presence of this code breaks the Streamlit app
 import numpy as np
 import pandas as pd
-import math
 import time
 import random
 from geopy.exc import GeocoderTimedOut
-import streamlit as st
 
 # 🔑 OpenRouteService API
+import streamlit as st
+
 API_KEY = st.secrets["ORS_API_KEY"]
 client = openrouteservice.Client(key=API_KEY)
-
 
 # 📄 Load Bridges Preset CSV
 bridges_preset = pd.read_csv("Preset Routes/bridges_preset_route.csv")
 bridges_route_coords = list(zip(bridges_preset["Latitude"], bridges_preset["Longitude"]))
-
-# Elevation Preference Helper Function
-def get_directions_with_weighting(coordinates, profile, elevation_preference, **kwargs):
-    weighting_map = {
-        "Normal": "recommended",
-        "Flat": "shortest",
-        "Hilly": "fastest"
-    }
-
-    # Only apply weighting if this is NOT a round_trip request
-    if "options" not in kwargs:
-        kwargs["options"] = {}
-    
-    is_round_trip = "round_trip" in kwargs["options"]
-    if not is_round_trip:
-        kwargs["options"]["weighting"] = weighting_map.get(elevation_preference, "recommended")
-
-    return client.directions(
-        coordinates=coordinates,
-        profile=profile,
-        format="geojson",
-        **kwargs
-    )
 
 # 🌍 Geocoder
 def get_coordinates(address):
@@ -74,15 +50,11 @@ def calculate_route_distance(coords):
     return total_distance
 
 # 🔁 Loop Route Generator with Retry and Error Margin
-def generate_loop_route_with_preset_retry(start_coords, distance_miles, elevation_preference="Normal", bridges_coords=None, max_attempts=8):
+def generate_loop_route_with_preset_retry(start_coords, distance_miles, bridges_coords=None, max_attempts=8):
     original_target_meters = distance_miles * 1609.34
     allowed_range = (original_target_meters - 1207, original_target_meters + 1207)
     reduction_factor = 0.85
     attempt = 0
-
-    best_coords = None
-    best_total_meters = 0
-    best_ascent = None
 
     while attempt < max_attempts:
         try:
@@ -96,10 +68,9 @@ def generate_loop_route_with_preset_retry(start_coords, distance_miles, elevatio
 
                 if start_coords != bridges_coords[0]:
                     print("🔄 Routing to preset start...")
-                    to_bridges = get_directions_with_weighting(
+                    to_bridges = client.directions(
                         coordinates=[(start_coords[1], start_coords[0]), (bridges_coords[0][1], bridges_coords[0][0])],
-                        profile="foot-walking",
-                        elevation_preference=elevation_preference
+                        profile="foot-walking", format="geojson"
                     )
                     to_bridges_coords = [(pt[1], pt[0]) for pt in to_bridges["features"][0]["geometry"]["coordinates"]]
                     route_coords += to_bridges_coords
@@ -113,10 +84,10 @@ def generate_loop_route_with_preset_retry(start_coords, distance_miles, elevatio
             origin = route_coords[-1] if route_coords else start_coords
             num_points = max(10, min(int(adjusted_remaining / 500), 40))
 
-            round_trip = get_directions_with_weighting(
+            round_trip = client.directions(
                 coordinates=[(origin[1], origin[0])],
                 profile="foot-walking",
-                elevation_preference=elevation_preference,
+                format="geojson",
                 options={
                     "round_trip": {
                         "length": adjusted_remaining,
@@ -129,55 +100,35 @@ def generate_loop_route_with_preset_retry(start_coords, distance_miles, elevatio
             route_coords += round_trip_coords
 
             total_meters = calculate_route_distance(route_coords)
-            elevation_data = get_elevation_for_coords(route_coords)
-            ascent, _ = calculate_ascent_descent(elevation_data)
-            print(f"🕕 Total final route distance: {total_meters / 1609:.2f} miles | Ascent: {ascent:.0f} ft")
+            print(f"🕕 Total final route distance: {total_meters / 1609:.2f} miles")
 
-            # Save first in-range route if Normal
-            if elevation_preference == "Normal" and allowed_range[0] <= total_meters <= allowed_range[1]:
-                print("🌟 Normal route within range — returning immediately.")
-                return route_coords
-
-            # Save best ascent-based route only if it meets the distance margin
             if allowed_range[0] <= total_meters <= allowed_range[1]:
-                if (
-                    best_coords is None
-                    or (elevation_preference == "Flat" and ascent < best_ascent)
-                    or (elevation_preference == "Hilly" and ascent > best_ascent)
-                ):
-                    best_coords = route_coords
-                    best_total_meters = total_meters
-                    best_ascent = ascent
-
-            reduction_factor -= 0.05
-            attempt += 1
+                print("🌟 Route distance within acceptable range.")
+                return route_coords
+            else:
+                print(f"⚠️ Distance out of range: Retrying... ({total_meters / 1609:.2f} mi)")
+                reduction_factor -= 0.05
+                attempt += 1
 
         except Exception as e:
             print("❌ Error generating loop route:", e)
             attempt += 1
 
-    if best_coords:
-        best_total_miles = best_total_meters / 1609.34
-        print(f"✅ Best route selected by elevation within margin. Distance: {best_total_miles:.2f} mi | Ascent: {best_ascent:.0f} ft")
-        return best_coords
-    else:
-        print("❌ No elevation-matching route within margin. All attempts failed.")
-        return None
-
-
+    print("⚠️ Returning best-effort route despite missed margin.")
+    return route_coords if route_coords else None
 
 # 🚩 Loop-with-Destination v3 — Smart Loop + Destination + Return
-def generate_loop_with_included_destination_v3(start_coords, target_miles, dest_coords, elevation_preference="Normal", bridges_coords=None, max_attempts=8):
+def generate_loop_with_included_destination_v3(start_coords, target_miles, dest_coords, bridges_coords=None, max_attempts=8):
     target_total_meters = target_miles * 1609.34
     allowed_range = (target_total_meters - 1207, target_total_meters + 1207)
     reduction_factor = 0.85
     attempt = 0
 
     # Pre-calculate Destination → Start distance (for budget)
-    back_route = get_directions_with_weighting(
+    back_route = client.directions(
         coordinates=[(dest_coords[1], dest_coords[0]), (start_coords[1], start_coords[0])],
         profile="foot-walking",
-        elevation_preference=elevation_preference
+        format="geojson"
     )
     back_coords = [(pt[1], pt[0]) for pt in back_route["features"][0]["geometry"]["coordinates"]]
     back_meters = calculate_route_distance(back_coords)
@@ -189,6 +140,7 @@ def generate_loop_with_included_destination_v3(start_coords, target_miles, dest_
         try:
             print(f"🕕 Attempt {attempt+1}: Requesting loop via destination (~{target_miles:.2f} miles budget).")
 
+            # 1️⃣ Generate initial creative loop (remaining budget after Destination → Start)
             loop_budget_meters = max(target_total_meters - back_meters - 500, 500)
 
             # If using preset Bridges, prepend those:
@@ -199,10 +151,10 @@ def generate_loop_with_included_destination_v3(start_coords, target_miles, dest_
                 print(f"🔍 Bridges segment distance: {bridges_distance_m / 1609:.2f} miles")
                 if start_coords != bridges_coords[0]:
                     print("🔄 Routing to preset start...")
-                    to_bridges = get_directions_with_weighting(
+                    to_bridges = client.directions(
                         coordinates=[(start_coords[1], start_coords[0]), (bridges_coords[0][1], bridges_coords[0][0])],
                         profile="foot-walking",
-                        elevation_preference=elevation_preference
+                        format="geojson"
                     )
                     to_bridges_coords = [(pt[1], pt[0]) for pt in to_bridges["features"][0]["geometry"]["coordinates"]]
                     loop_coords += to_bridges_coords
@@ -212,10 +164,10 @@ def generate_loop_with_included_destination_v3(start_coords, target_miles, dest_
                 origin_coords = start_coords
 
             # Creative loop segment
-            round_trip = get_directions_with_weighting(
+            round_trip = client.directions(
                 coordinates=[(origin_coords[1], origin_coords[0])],
                 profile="foot-walking",
-                elevation_preference=elevation_preference,
+                format="geojson",
                 options={
                     "round_trip": {
                         "length": loop_budget_meters,
@@ -226,16 +178,16 @@ def generate_loop_with_included_destination_v3(start_coords, target_miles, dest_
             )
             loop_only_coords = [(pt[1], pt[0]) for pt in round_trip["features"][0]["geometry"]["coordinates"]]
 
-            # Route from end of loop → Destination
-            to_dest_route = get_directions_with_weighting(
+            # 2️⃣ Route from end of loop → Destination
+            to_dest_route = client.directions(
                 coordinates=[(loop_only_coords[-1][1], loop_only_coords[-1][0]), (dest_coords[1], dest_coords[0])],
                 profile="foot-walking",
-                elevation_preference=elevation_preference
+                format="geojson"
             )
             to_dest_coords = [(pt[1], pt[0]) for pt in to_dest_route["features"][0]["geometry"]["coordinates"]]
             to_dest_meters = calculate_route_distance(to_dest_coords)
 
-            # Combine full route
+            # 3️⃣ Combine full route:
             full_coords = loop_coords + loop_only_coords + to_dest_coords + back_coords
             total_meters = calculate_route_distance(full_coords)
             total_miles = total_meters / 1609.34
@@ -245,16 +197,19 @@ def generate_loop_with_included_destination_v3(start_coords, target_miles, dest_
             print(f"📏 Return segment distance: {back_meters/1609.34:.2f} miles")
             print(f"📏 Total loop-with-destination route distance: {total_miles:.2f} miles")
 
+            # 4️⃣ Check margin
             if allowed_range[0] <= total_meters <= allowed_range[1]:
                 print("🌟 Loop-with-destination route distance within acceptable range.")
                 return full_coords
 
+            # Save best attempt so far
             if best_coords is None or abs(total_meters - target_total_meters) < abs(best_total_meters - target_total_meters if best_total_meters else float('inf')):
                 best_coords = full_coords
                 best_total_meters = total_meters
 
+            # Next attempt tuning
             reduction_factor -= 0.05
-            target_total_meters = max(target_total_meters * reduction_factor, 800 * 2)
+            target_total_meters = max(target_total_meters * reduction_factor, 800 * 2)  # Min total target
             attempt += 1
 
         except Exception as e:
@@ -268,7 +223,11 @@ def generate_loop_with_included_destination_v3(start_coords, target_miles, dest_
 
 
 # 🚩 Out-and-Back with Forced Directional Waypoint (Midpoint Waypoint Method)
-def generate_out_and_back_directional_route(start_coords, distance_miles, direction, elevation_preference, max_attempts=5):
+def generate_out_and_back_directional_route(start_coords, distance_miles, direction, max_attempts=5):
+    import math
+    import time
+    import random
+
     target_total_meters = distance_miles * 1609.34
     half_meters = target_total_meters / 2
     allowed_range = (target_total_meters - 1207, target_total_meters + 1207)
@@ -287,6 +246,7 @@ def generate_out_and_back_directional_route(start_coords, distance_miles, direct
 
     while attempt < max_attempts:
         try:
+            # 🎲 Add random jitter ±15° to heading
             jitter_deg = random.uniform(-15, 15)
             heading_deg = (heading_deg_base + jitter_deg) % 360
 
@@ -303,14 +263,14 @@ def generate_out_and_back_directional_route(start_coords, distance_miles, direct
             print(f"📍 Midpoint forced at approx {midpoint}")
 
             # Path: start → midpoint → start
-            route = get_directions_with_weighting(
+            route = client.directions(
                 coordinates=[
                     (start_coords[1], start_coords[0]),
                     (midpoint[1], midpoint[0]),
                     (start_coords[1], start_coords[0])
                 ],
                 profile="foot-walking",
-                elevation_preference=elevation_preference
+                format="geojson"
             )
             coords = [(pt[1], pt[0]) for pt in route["features"][0]["geometry"]["coordinates"]]
 
@@ -338,7 +298,6 @@ def generate_out_and_back_directional_route(start_coords, distance_miles, direct
     if best_coords:
         print(f"⚠️ Best effort route distance: {best_total_meters / 1609.34:.2f} miles")
     return best_coords if best_coords else None
-
 
 
 # 🚩 Destination Route Generator
