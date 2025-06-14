@@ -138,15 +138,16 @@ def generate_loop_route_with_preset_retry(start_coords, distance_miles, elevatio
                 print("🌟 Normal route within range — returning immediately.")
                 return route_coords
 
-            # Save best ascent-based route
-            if (
-                best_coords is None
-                or (elevation_preference == "Flat" and ascent < best_ascent)
-                or (elevation_preference == "Hilly" and ascent > best_ascent)
-            ):
-                best_coords = route_coords
-                best_total_meters = total_meters
-                best_ascent = ascent
+            # Save best ascent-based route only if it meets the distance margin
+            if allowed_range[0] <= total_meters <= allowed_range[1]:
+                if (
+                    best_coords is None
+                    or (elevation_preference == "Flat" and ascent < best_ascent)
+                    or (elevation_preference == "Hilly" and ascent > best_ascent)
+                ):
+                    best_coords = route_coords
+                    best_total_meters = total_meters
+                    best_ascent = ascent
 
             reduction_factor -= 0.05
             attempt += 1
@@ -157,14 +158,10 @@ def generate_loop_route_with_preset_retry(start_coords, distance_miles, elevatio
 
     if best_coords:
         best_total_miles = best_total_meters / 1609.34
-        if allowed_range[0] <= best_total_meters <= allowed_range[1]:
-            print(f"✅ Best route selected by elevation within margin. Distance: {best_total_miles:.2f} mi | Ascent: {best_ascent:.0f} ft")
-            return best_coords
-        else:
-            print(f"❌ Best elevation-based route is out of margin: {best_total_miles:.2f} mi (target was ~{distance_miles:.2f} mi)")
-            return None
+        print(f"✅ Best route selected by elevation within margin. Distance: {best_total_miles:.2f} mi | Ascent: {best_ascent:.0f} ft")
+        return best_coords
     else:
-        print("❌ All attempts failed — no valid route found.")
+        print("❌ No elevation-matching route within margin. All attempts failed.")
         return None
 
 
