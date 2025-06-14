@@ -51,6 +51,9 @@ with tab_loop:
             if selected_dest:
                 destination_coords = selected_dest
 
+            # 📝 Clarifying caption
+            st.caption("📍 Destination will be included as part of the loop — your route will pass through it before returning.")
+
     st.markdown("---")
 
     if st.button("Generate Loop Route 🚀", key="loop_button"):
