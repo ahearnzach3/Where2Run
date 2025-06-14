@@ -167,6 +167,7 @@ def generate_loop_route_with_preset_retry(start_coords, distance_miles, bridges_
 def generate_loop_with_included_destination_v3(start_coords, target_miles, dest_coords, bridges_coords=None, max_attempts=8):
     target_total_meters = target_miles * 1609.34
     allowed_range = (target_total_meters - 1207, target_total_meters + 1207)
+    reduction_factor = 0.85
     attempt = 0
 
     # Pre-calculate Destination → Start distance (for budget)
@@ -179,71 +180,75 @@ def generate_loop_with_included_destination_v3(start_coords, target_miles, dest_
     back_meters = calculate_route_distance(back_coords)
 
     best_coords = None
-    best_total_meters = None
+    best_total_meters = float("inf")
 
     while attempt < max_attempts:
         try:
-            print(f"🕕 Attempt {attempt+1}: Requesting loop with destination (~{target_miles:.2f} miles budget).")
+            print(f"🕕 Attempt {attempt+1}: Requesting loop via destination (~{target_miles:.2f} mi budget)")
 
+            loop_budget_meters = max(target_total_meters - back_meters - 500, 500)
+
+            # Starting route
             loop_coords = []
-
             if bridges_coords:
-                print("✅ Including Bridges preset segment.")
-                bridges_distance_m = calculate_route_distance(bridges_coords)
-                print(f"🔍 Bridges segment distance: {bridges_distance_m / 1609:.2f} miles")
-                if start_coords != bridges_coords[0]:
-                    print("🔄 Routing to preset start...")
-                    to_bridges = client.directions(
-                        coordinates=[(start_coords[1], start_coords[0]), (bridges_coords[0][1], bridges_coords[0][0])],
-                        profile="foot-walking",
-                        format="geojson"
-                    )
-                    to_bridges_coords = [(pt[1], pt[0]) for pt in to_bridges["features"][0]["geometry"]["coordinates"]]
-                    loop_coords += to_bridges_coords
+                print("✅ Including Bridges preset.")
+                to_bridges = client.directions(
+                    coordinates=[(start_coords[1], start_coords[0]), (bridges_coords[0][1], bridges_coords[0][0])],
+                    profile="foot-walking", format="geojson"
+                )
+                to_bridges_coords = [(pt[1], pt[0]) for pt in to_bridges["features"][0]["geometry"]["coordinates"]]
+                loop_coords += to_bridges_coords
                 loop_coords += bridges_coords
                 origin_coords = loop_coords[-1]
             else:
                 origin_coords = start_coords
 
-            # 🧭 Force loop to include destination explicitly
-            loop_with_dest = client.directions(
-                coordinates=[
-                    (origin_coords[1], origin_coords[0]),
-                    (dest_coords[1], dest_coords[0]),
-                    (origin_coords[1], origin_coords[0])
-                ],
-                profile="foot-walking",
-                format="geojson"
+            # Creative loop
+            round_trip = client.directions(
+                coordinates=[(origin_coords[1], origin_coords[0])],
+                profile="foot-walking", format="geojson",
+                options={
+                    "round_trip": {
+                        "length": loop_budget_meters,
+                        "points": 12,  # reduce tight spiraling
+                        "seed": random.randint(0, 10000)
+                    }
+                }
             )
-            loop_only_coords = [(pt[1], pt[0]) for pt in loop_with_dest["features"][0]["geometry"]["coordinates"]]
-            loop_distance_m = calculate_route_distance(loop_only_coords)
+            loop_only_coords = [(pt[1], pt[0]) for pt in round_trip["features"][0]["geometry"]["coordinates"]]
 
-            # 🧩 Combine full route
-            full_coords = loop_coords + loop_only_coords + back_coords
+            # To destination
+            to_dest_route = client.directions(
+                coordinates=[(loop_only_coords[-1][1], loop_only_coords[-1][0]), (dest_coords[1], dest_coords[0])],
+                profile="foot-walking", format="geojson"
+            )
+            to_dest_coords = [(pt[1], pt[0]) for pt in to_dest_route["features"][0]["geometry"]["coordinates"]]
+            to_dest_meters = calculate_route_distance(to_dest_coords)
+
+            # Combine
+            full_coords = loop_coords + loop_only_coords + to_dest_coords + back_coords
             total_meters = calculate_route_distance(full_coords)
-            total_miles = total_meters / 1609.34
 
-            print(f"📏 Loop-with-destination segment distance: {loop_distance_m / 1609.34:.2f} miles")
-            print(f"📏 Return segment distance: {back_meters / 1609.34:.2f} miles")
-            print(f"📏 Total route distance: {total_miles:.2f} miles")
+            print(f"📏 Full distance: {total_meters/1609.34:.2f} mi")
 
+            # Check distance range
             if allowed_range[0] <= total_meters <= allowed_range[1]:
-                print("🌟 Loop-with-destination route distance within acceptable range.")
+                print("✅ Distance within range — returning route.")
                 return full_coords
 
-            if best_coords is None or abs(total_meters - target_total_meters) < abs(best_total_meters - target_total_meters if best_total_meters else float('inf')):
+            if abs(total_meters - target_total_meters) < abs(best_total_meters - target_total_meters):
                 best_coords = full_coords
                 best_total_meters = total_meters
 
+            reduction_factor -= 0.05
+            target_total_meters = max(target_total_meters * reduction_factor, 3200)
             attempt += 1
 
         except Exception as e:
-            print(f"❌ Error generating loop-with-destination route:", e)
+            print(f"❌ Error in attempt {attempt+1}:", e)
             attempt += 1
 
-    print("⚠️ Returning best-effort loop-with-destination route despite missed margin.")
-    if best_coords:
-        print(f"⚠️ Best effort route distance: {best_total_meters / 1609.34:.2f} miles")
+    print("⚠️ Returning best-effort route.")
     return best_coords if best_coords else None
 
 
