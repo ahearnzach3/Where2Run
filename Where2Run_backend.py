@@ -15,6 +15,7 @@ import time
 import random
 from geopy.exc import GeocoderTimedOut
 import streamlit as st
+import requests
 
 # 🔑 OpenRouteService API
 API_KEY = st.secrets["ORS_API_KEY"]
