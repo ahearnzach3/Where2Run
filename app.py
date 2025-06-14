@@ -29,7 +29,7 @@ with tab_loop:
             label="Starting Location",
             key="loop_start_search"
         )
-        start_coords = (selected_place["value"][1], selected_place["value"][0]) if selected_place else None
+        start_coords = selected_place if selected_place else None
 
         # 📏 Distance Input
         distance_miles = st.number_input("📏 Desired loop distance (miles)", min_value=1.0, value=6.0, step=0.5, key="loop_distance")
@@ -49,7 +49,7 @@ with tab_loop:
                 key="loop_dest_search"
             )
             if selected_dest:
-                destination_coords = (selected_dest["value"][1], selected_dest["value"][0])
+                destination_coords = selected_dest
 
     st.markdown("---")
 
