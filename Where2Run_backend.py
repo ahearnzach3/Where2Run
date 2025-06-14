@@ -33,10 +33,15 @@ def get_directions_with_weighting(coordinates, profile, elevation_preference, **
         "Flat": "shortest",
         "Hilly": "fastest"
     }
+
+    # Only apply weighting if this is NOT a round_trip request
     if "options" not in kwargs:
         kwargs["options"] = {}
-    kwargs["options"]["weighting"] = weighting_map.get(elevation_preference, "recommended")
     
+    is_round_trip = "round_trip" in kwargs["options"]
+    if not is_round_trip:
+        kwargs["options"]["weighting"] = weighting_map.get(elevation_preference, "recommended")
+
     return client.directions(
         coordinates=coordinates,
         profile=profile,
