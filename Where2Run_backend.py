@@ -217,12 +217,18 @@ def generate_loop_with_included_destination_v3(start_coords, target_miles, dest_
             )
             loop_only_coords = [(pt[1], pt[0]) for pt in round_trip["features"][0]["geometry"]["coordinates"]]
 
+            
+            # Nudge destination slightly inward (south/east ~30 meters)
+            nudge_lat = dest_coords[0] - 0.0003
+            nudge_lon = dest_coords[1] + 0.0003
+            nudged_dest = (nudge_lat, nudge_lon)
+
             # To destination — force pass through destination
             to_dest_route = client.directions(
                 coordinates=[
                     (loop_only_coords[-1][1], loop_only_coords[-1][0]),
-                    (dest_coords[1], dest_coords[0]),  # via waypoint
-                    (dest_coords[1], dest_coords[0])   # final stop
+                    (nudged_dest[1], nudged_dest[0]),
+                    (dest_coords[1], dest_coords[0])
                 ],
                 profile="foot-walking", format="geojson"
             )
