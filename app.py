@@ -26,12 +26,6 @@ with tab_loop:
         start_coords = wr.get_coordinates(start_location) if start_location else None
 
         distance_miles = st.number_input("📏 Desired loop distance (miles)", min_value=1.0, value=6.0, step=0.5, key="loop_distance")
-        elevation_preference = st.radio(
-            "🏔️ Elevation Preference",
-            ["Normal", "Flat", "Hilly"],
-            index=0,
-            key="loop_elevation_pref"
-        )
         use_preset = st.checkbox("🌉 Include Bridges preset?", key="loop_preset")
         include_destination = st.checkbox("📍 Include destination on loop?", key="loop_include_dest")
 
@@ -51,15 +45,13 @@ with tab_loop:
                         start_coords=start_coords,
                         target_miles=distance_miles,
                         dest_coords=destination_coords,
-                        bridges_coords=preset_coords,
-                        elevation_preference=elevation_preference
+                        bridges_coords=preset_coords
                     )
                 else:
                     route_coords = wr.generate_loop_route_with_preset_retry(
                         start_coords=start_coords,
                         distance_miles=distance_miles,
-                        bridges_coords=preset_coords,
-                        elevation_preference=elevation_preference
+                        bridges_coords=preset_coords
                     )
 
                 if route_coords:
@@ -105,12 +97,6 @@ with tab_out_and_back:
         start_coords = wr.get_coordinates(start_location) if start_location else None
 
         distance_miles = st.number_input("📏 Total out-and-back distance (miles)", min_value=1.0, value=6.0, step=0.5, key="out_distance")
-        elevation_preference = st.radio(
-            "🏔️ Elevation Preference",
-            ["Normal", "Flat", "Hilly"],
-            index=0,
-            key="out_elevation_pref"
-        )
         direction_preference = st.selectbox("🎯 Bias route in direction?", ["None", "N", "S", "E", "W"], key="out_direction")
 
     st.markdown("---")
@@ -121,8 +107,7 @@ with tab_out_and_back:
                 route_coords = wr.generate_out_and_back_directional_route(
                     start_coords=start_coords,
                     distance_miles=distance_miles,
-                    direction=direction_preference.lower() if direction_preference != "None" else "n",
-                    elevation_preference=elevation_preference
+                    direction=direction_preference.lower() if direction_preference != "None" else "n"
                 )
                 if route_coords:
                     elevation_data = wr.get_elevation_for_coords(route_coords)
@@ -170,23 +155,14 @@ with tab_destination:
         start_coords = wr.get_coordinates(start_location) if start_location else None
 
         destination_address = st.text_input("🏁 Enter destination location", key="dest_dest_addr")
-        elevation_preference = st.radio(
-            "🏔️ Elevation Preference",
-            ["Normal", "Flat", "Hilly"],
-            index=0,
-            key="dest_elevation_pref"
-        )
         destination_coords = wr.get_coordinates(destination_address) if destination_address else None
-        
-        # Always store current elevation preference
-        st.session_state.dest_elevation_preference = elevation_preference
 
     st.markdown("---")
 
     if st.button("Generate Destination Route 🚀", key="dest_button"):
         if start_coords and destination_coords:
             with st.spinner("Generating destination route..."):
-                route_coords, one_way_miles = wr.generate_destination_route(start_coords, destination_coords, elevation_preference)
+                route_coords, one_way_miles = wr.generate_destination_route(start_coords, destination_coords)
                 if route_coords:
                     elevation_data = wr.get_elevation_for_coords(route_coords)
                     m = wr.plot_route_with_elevation(route_coords, elevation_data)
@@ -238,7 +214,7 @@ with tab_destination:
             if second_decision == "Round Trip":
                 rt_coords = wr.generate_destination_round_trip(
                     st.session_state.dest_start_coords,
-                    st.session_state.dest_destination_coords,
+                    st.session_state.dest_destination_coords
                 )
                 if rt_coords:
                     elevation_data = wr.get_elevation_for_coords(rt_coords)
@@ -273,8 +249,7 @@ with tab_destination:
                     extended_coords = wr.generate_extended_destination_route(
                         st.session_state.dest_start_coords,
                         st.session_state.dest_destination_coords,
-                        target_miles,
-                        st.session_state.dest_elevation_preference
+                        target_miles
                     )
                     if extended_coords:
                         elevation_data = wr.get_elevation_for_coords(extended_coords)
