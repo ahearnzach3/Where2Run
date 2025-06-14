@@ -210,22 +210,26 @@ def generate_loop_with_included_destination_v3(start_coords, target_miles, dest_
                 options={
                     "round_trip": {
                         "length": loop_budget_meters,
-                        "points": 12,  # reduce tight spiraling
+                        "points": 12,
                         "seed": random.randint(0, 10000)
                     }
                 }
             )
             loop_only_coords = [(pt[1], pt[0]) for pt in round_trip["features"][0]["geometry"]["coordinates"]]
 
-            # To destination
+            # To destination — force pass through destination
             to_dest_route = client.directions(
-                coordinates=[(loop_only_coords[-1][1], loop_only_coords[-1][0]), (dest_coords[1], dest_coords[0])],
+                coordinates=[
+                    (loop_only_coords[-1][1], loop_only_coords[-1][0]),
+                    (dest_coords[1], dest_coords[0]),  # via waypoint
+                    (dest_coords[1], dest_coords[0])   # final stop
+                ],
                 profile="foot-walking", format="geojson"
             )
             to_dest_coords = [(pt[1], pt[0]) for pt in to_dest_route["features"][0]["geometry"]["coordinates"]]
             to_dest_meters = calculate_route_distance(to_dest_coords)
 
-            # Combine
+            # Combine route
             full_coords = loop_coords + loop_only_coords + to_dest_coords + back_coords
             total_meters = calculate_route_distance(full_coords)
 
@@ -236,10 +240,12 @@ def generate_loop_with_included_destination_v3(start_coords, target_miles, dest_
                 print("✅ Distance within range — returning route.")
                 return full_coords
 
+            # Save best attempt
             if abs(total_meters - target_total_meters) < abs(best_total_meters - target_total_meters):
                 best_coords = full_coords
                 best_total_meters = total_meters
 
+            # Adjust for next try
             reduction_factor -= 0.05
             target_total_meters = max(target_total_meters * reduction_factor, 3200)
             attempt += 1
@@ -250,7 +256,6 @@ def generate_loop_with_included_destination_v3(start_coords, target_miles, dest_
 
     print("⚠️ Returning best-effort route.")
     return best_coords if best_coords else None
-
 
 
 # 🚩 Out-and-Back with Forced Directional Waypoint (Midpoint Waypoint Method)
