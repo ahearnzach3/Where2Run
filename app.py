@@ -3,6 +3,8 @@
 import streamlit as st
 import Where2Run_backend as wr
 from streamlit.components.v1 import html
+from Where2Run_backend import mapbox_autocomplete  # Used for Address Autocompletion
+from Where2Run_backend import get_coords_from_place_name # Used for Address Autocompletion
 
 # App title
 st.markdown("<h1 style='text-align: center;'>🏃‍♂️ Where2Run - Run Route Generator</h1>", unsafe_allow_html=True)
@@ -21,18 +23,37 @@ with tab_loop:
     st.markdown("---")
 
     with st.container():
-        start_location = st.text_input(
-    "📍 Enter your starting location", placeholder="e.g., 400 E Morehead St, Charlotte, NC --> (Dowd YMCA)", key="loop_start")
-        start_coords = wr.get_coordinates(start_location) if start_location else None
+        # 📍 Start Location with Autocomplete + Placeholder
+        typed_start = st.text_input(
+            "📍 Start typing your location",
+            placeholder="e.g., 400 E Morehead St, Charlotte, NC → (Dowd YMCA)",
+            key="loop_start_typed"
+        )
+        start_suggestions = wr.mapbox_autocomplete(typed_start) if typed_start else []
+        start_options = ["🔍 Choose from suggestions..."] + start_suggestions if start_suggestions else []
+        start_location = st.selectbox("Choose your starting location", start_options, key="loop_start_select") if start_options else None
+        start_coords = wr.get_coords_from_place_name(start_location) if start_location and start_location != "🔍 Choose from suggestions..." else None
 
+        # 📏 Distance Input
         distance_miles = st.number_input("📏 Desired loop distance (miles)", min_value=1.0, value=6.0, step=0.5, key="loop_distance")
-        use_preset = st.checkbox("🌉 Include Bridges preset?", key="loop_preset")
-        include_destination = st.checkbox("📍 Include destination on loop?", key="loop_include_dest")
 
+        # 🌉 Bridges preset
+        use_preset = st.checkbox("🌉 Include Bridges preset?", key="loop_preset")
+
+        # 📍 Destination Location with Autocomplete + Placeholder
+        include_destination = st.checkbox("📍 Include destination on loop?", key="loop_include_dest")
         destination_coords = None
+
         if include_destination:
-            destination_address = st.text_input("🏁 Enter destination to include", key="loop_dest_addr")
-            destination_coords = wr.get_coordinates(destination_address) if destination_address else None
+            typed_dest = st.text_input(
+                "🏁 Start typing your destination",
+                placeholder="e.g., Freedom Park, Charlotte NC",
+                key="loop_dest_typed"
+            )
+            dest_suggestions = wr.mapbox_autocomplete(typed_dest) if typed_dest else []
+            dest_options = ["🔍 Choose from suggestions..."] + dest_suggestions if dest_suggestions else []
+            selected_dest = st.selectbox("Choose your destination", dest_options, key="loop_dest_select") if dest_options else None
+            destination_coords = wr.get_coords_from_place_name(selected_dest) if selected_dest and selected_dest != "🔍 Choose from suggestions..." else None
 
     st.markdown("---")
 
