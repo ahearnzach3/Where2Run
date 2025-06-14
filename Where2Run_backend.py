@@ -53,6 +53,18 @@ def get_coords_from_place_name(place_name):
         return lat, lon
     return None
 
+# ⌨️ Start Location Autocomplete
+def search_places(query):
+    url = f"https://api.mapbox.com/geocoding/v5/mapbox.places/{query}.json"
+    params = {
+        "access_token": st.secrets["MAPBOX_TOKEN"],
+        "autocomplete": "true",
+        "limit": 5
+    }
+    resp = requests.get(url, params=params)
+    results = resp.json().get("features", []) if resp.ok else []
+    return [{"name": f["place_name"], "value": f["center"]} for f in results]
+
 # 📄 Load Bridges Preset CSV
 bridges_preset = pd.read_csv("Preset Routes/bridges_preset_route.csv")
 bridges_route_coords = list(zip(bridges_preset["Latitude"], bridges_preset["Longitude"]))
