@@ -14,12 +14,43 @@ import pandas as pd
 import time
 import random
 from geopy.exc import GeocoderTimedOut
-
-# 🔑 OpenRouteService API
 import streamlit as st
 
+# 🔑 OpenRouteService API
 API_KEY = st.secrets["ORS_API_KEY"]
 client = openrouteservice.Client(key=API_KEY)
+
+# Mapbox Token for Address Autocompletion
+MAPBOX_TOKEN = st.secrets["MAPBOX_TOKEN"]
+
+def mapbox_autocomplete(query):
+    url = f"https://api.mapbox.com/geocoding/v5/mapbox.places/{query}.json"
+    params = {
+        "access_token": MAPBOX_TOKEN,
+        "autocomplete": "true",
+        "limit": 5
+    }
+    resp = requests.get(url, params=params)
+    if resp.ok:
+        return [feature["place_name"] for feature in resp.json().get("features", [])]
+    return []
+
+typed = st.text_input("Start typing your location")
+suggestions = mapbox_autocomplete(typed) if typed else []
+selected = st.selectbox("Choose a location", suggestions) if suggestions else None
+
+if selected:
+    st.write("✅ Selected:", selected)
+
+def get_coords_from_place_name(place_name):
+    url = f"https://api.mapbox.com/geocoding/v5/mapbox.places/{place_name}.json"
+    params = {"access_token": st.secrets["MAPBOX_TOKEN"], "limit": 1}
+    resp = requests.get(url, params=params)
+    features = resp.json().get("features", [])
+    if features:
+        lon, lat = features[0]["center"]
+        return lat, lon
+    return None
 
 # 📄 Load Bridges Preset CSV
 bridges_preset = pd.read_csv("Preset Routes/bridges_preset_route.csv")
