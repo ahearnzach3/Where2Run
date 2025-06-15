@@ -179,7 +179,7 @@ def calculate_route_distance(coords):
 
 def generate_loop_route_with_preset_retry(start_coords, distance_miles, bridges_coords=None, max_attempts=8, profile="foot-walking", route_environment=None):
     if route_environment:
-        def inner(*, profile):
+        def inner(profile, **_):  # ✅ Handles dynamic profile + extra kwargs
             return generate_loop_route_with_preset_retry(
                 start_coords=start_coords,
                 distance_miles=distance_miles,
@@ -188,6 +188,7 @@ def generate_loop_route_with_preset_retry(start_coords, distance_miles, bridges_
                 profile=profile
             )
         return try_route_with_fallback(inner, start_coords=start_coords, route_environment=route_environment)
+
 
     # Proceed with original routing logic using provided profile
     original_target_meters = distance_miles * 1609.34
