@@ -11,6 +11,7 @@ from geopy.distance import geodesic
 # from IPython.display import display -Presence of this code breaks the Streamlit app
 import numpy as np
 import pandas as pd
+import math
 import time
 import random
 from geopy.exc import GeocoderTimedOut
@@ -372,11 +373,23 @@ def generate_loop_with_included_destination_v3(start_coords, target_miles, dest_
 
 
 # 🚩 Out-and-Back with Forced Directional Waypoint (Midpoint Waypoint Method)
-def generate_out_and_back_directional_route(start_coords, distance_miles, direction, max_attempts=5):
+def generate_out_and_back_directional_route(start_coords, distance_miles, direction, max_attempts=5, profile="foot-walking", route_environment=None):
     import math
     import time
     import random
 
+    if route_environment:
+        def inner(profile, **_):
+            return generate_out_and_back_directional_route(
+                start_coords=start_coords,
+                distance_miles=distance_miles,
+                direction=direction,
+                max_attempts=max_attempts,
+                profile=profile
+            )
+        return try_route_with_fallback(inner, start_coords=start_coords, route_environment=route_environment)
+
+    # Proceed with original routing logic using provided profile
     target_total_meters = distance_miles * 1609.34
     half_meters = target_total_meters / 2
     allowed_range = (target_total_meters - 1207, target_total_meters + 1207)
@@ -395,7 +408,6 @@ def generate_out_and_back_directional_route(start_coords, distance_miles, direct
 
     while attempt < max_attempts:
         try:
-            # 🎲 Add random jitter ±15° to heading
             jitter_deg = random.uniform(-15, 15)
             heading_deg = (heading_deg_base + jitter_deg) % 360
 
@@ -418,7 +430,7 @@ def generate_out_and_back_directional_route(start_coords, distance_miles, direct
                     (midpoint[1], midpoint[0]),
                     (start_coords[1], start_coords[0])
                 ],
-                profile="foot-walking",
+                profile=profile,
                 format="geojson"
             )
             coords = [(pt[1], pt[0]) for pt in route["features"][0]["geometry"]["coordinates"]]
