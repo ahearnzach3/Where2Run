@@ -22,14 +22,17 @@ with tab_loop:
     st.markdown("---")
 
     with st.container():
-        # 📍 Start Location with Mapbox Search
-        selected_place = st_searchbox(
+        # 📍 Searchbox Input (Mapbox UI — returns lat/lon and stores label)
+        st_searchbox(
             search_function=wr.search_places,
-            placeholder="📍 Start typing your location (e.g., 400 E Morehead St, Charlotte, NC)",
-            label="Starting Location",
+            placeholder="Start typing your starting address",
+            label="📍 Enter your starting location",
             key="loop_start_search"
         )
-        start_coords = selected_place if selected_place else None
+
+        # ✅ Extract label (place_name) from session state and convert via Nominatim
+        start_label = st.session_state.get("loop_start_search", {}).get("result")
+        start_coords = wr.get_coordinates(start_label) if start_label else None
 
         # 📏 Distance Input
         distance_miles = st.number_input(
@@ -41,7 +44,7 @@ with tab_loop:
         # 🌉 Bridges preset
         use_preset = st.checkbox("🌉 Include Bridges preset?", key="loop_preset")
 
-         # 🧭 Route Environment Preference (Expanded Options)
+        # 🧭 Route Environment Preference (Expanded Options)
         route_env = st.selectbox(
             "🌿 Route Environment Preference (Optional)", 
             ["None", "Prefer Trails", "Scenic", "Shaded", "Suburban", "Urban"], 
@@ -49,21 +52,21 @@ with tab_loop:
         )
         route_env = None if route_env == "None" else route_env.lower()
 
-        # 🏁 Destination Location with Mapbox Search
+        # 🏁 Optional Destination Location
         include_destination = st.checkbox("📍 Include destination on loop?", key="loop_include_dest")
         destination_coords = None
 
         if include_destination:
-            selected_dest = st_searchbox(
+            st_searchbox(
                 search_function=wr.search_places,
-                placeholder="🏁 Start typing your destination (e.g., Freedom Park, Charlotte NC)",
-                label="Destination",
+                placeholder="Enter destination location",
+                label="🏁 Destination address",
                 key="loop_dest_search"
             )
-            if selected_dest:
-                destination_coords = selected_dest
 
-            # 📝 Clarifying caption
+            dest_label = st.session_state.get("loop_dest_search", {}).get("result")
+            destination_coords = wr.get_coordinates(dest_label) if dest_label else None
+
             st.caption("📍 Destination will be included as part of the loop — your route will pass through it before returning.")
 
     st.markdown("---")
@@ -86,31 +89,24 @@ with tab_loop:
                         start_coords=start_coords,
                         distance_miles=distance_miles,
                         bridges_coords=preset_coords,
-                        route_environment=route_env  # ✅ Pass selected route environment
+                        route_environment=route_env
                     )
 
                 if route_coords:
                     elevation_data = wr.get_elevation_for_coords(route_coords)
                     m = wr.plot_route_with_elevation(route_coords, elevation_data)
 
-                    # Dynamic map height based on route length
                     route_length_miles = wr.calculate_route_distance(route_coords) / 1609.34
                     map_height = min(800, 400 + int(route_length_miles * 20))
 
-                    map_html = m.get_root().render()
-                    html(map_html, height=map_height, scrolling=True)
+                    html(m.get_root().render(), height=map_height, scrolling=True)
 
                     wr.print_run_summary(route_coords, elevation_data, st)
 
                     with st.expander("📈 Elevation Charts (click to expand)"):
-                        fig1 = wr.plot_elevation_area_chart(elevation_data)
-                        st.pyplot(fig1)
-
-                        fig2 = wr.plot_cumulative_elevation_gain(elevation_data)
-                        st.pyplot(fig2)
-
-                        fig3 = wr.plot_moving_average_grade(elevation_data)
-                        st.pyplot(fig3)
+                        st.pyplot(wr.plot_elevation_area_chart(elevation_data))
+                        st.pyplot(wr.plot_cumulative_elevation_gain(elevation_data))
+                        st.pyplot(wr.plot_moving_average_grade(elevation_data))
 
                     wr.save_route_as_gpx(route_coords, filename="Where2Run_route.gpx")
                     with open("Where2Run_route.gpx", "rb") as file:
@@ -119,6 +115,7 @@ with tab_loop:
                     st.error("❌ Route could not be generated.")
         else:
             st.error("❌ Please enter a valid starting location.")
+
 
 
 # --- OUT-AND-BACK TAB ---
