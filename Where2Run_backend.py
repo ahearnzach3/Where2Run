@@ -205,6 +205,31 @@ def try_route_with_fallback(route_fn, *args, route_environment="Trail", **kwargs
         st.info("Default pedestrian route used due to routing issues.")
         return route_fn(*args, profile="foot-walking", **kwargs), "foot-walking"
 
+# Legacy version of display_route_results (likely from your early notebook version)
+def display_route_results(route_coords, st):
+    import folium
+    from folium.plugins import MarkerCluster
+    from streamlit_folium import st_folium
+    import matplotlib.pyplot as plt
+    from geopy.distance import geodesic
+
+    if not route_coords:
+        st.error("❌ No route generated.")
+        return
+
+    # Map
+    m = folium.Map(location=route_coords[0], zoom_start=14)
+    folium.PolyLine(route_coords, color="blue", weight=4).add_to(m)
+    folium.Marker(route_coords[0], tooltip="Start", icon=folium.Icon(color="green")).add_to(m)
+    folium.Marker(route_coords[-1], tooltip="End", icon=folium.Icon(color="red")).add_to(m)
+    st_folium(m, width=700, height=500)
+
+    # Distance
+    total_miles = sum(
+        geodesic(route_coords[i], route_coords[i+1]).miles
+        for i in range(len(route_coords) - 1)
+    )
+    st.success(f"✅ Route generated! Total distance: {total_miles:.2f} miles")
 
 
 # 📄 Load Bridges Preset CSV
