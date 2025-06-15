@@ -128,11 +128,31 @@ with tab_out_and_back:
 
     with st.container():
         start_location = st.text_input(
-    "📍 Enter your starting location", placeholder="e.g., 400 E Morehead St, Charlotte, NC --> (Dowd YMCA)", key="out_start")
+            "📍 Enter your starting location", 
+            placeholder="e.g., 400 E Morehead St, Charlotte, NC --> (Dowd YMCA)", 
+            key="out_start"
+        )
         start_coords = wr.get_coordinates(start_location) if start_location else None
 
-        distance_miles = st.number_input("📏 Total out-and-back distance (miles)", min_value=1.0, value=6.0, step=0.5, key="out_distance")
-        direction_preference = st.selectbox("🎯 Bias route in direction?", ["None", "N", "S", "E", "W"], key="out_direction")
+        distance_miles = st.number_input(
+            "📏 Total out-and-back distance (miles)", 
+            min_value=1.0, value=6.0, step=0.5, 
+            key="out_distance"
+        )
+
+        direction_preference = st.selectbox(
+            "🎯 Bias route in direction?", 
+            ["None", "N", "S", "E", "W"], 
+            key="out_direction"
+        )
+
+        # 🧭 Route Environment Preference
+        route_env = st.selectbox(
+            "🌿 Route Preference (Optional)", 
+            ["None", "Prefer Trails", "Scenic", "Shaded"], 
+            key="out_env_select"
+        )
+        route_env = None if route_env == "None" else route_env.lower()
 
     st.markdown("---")
 
@@ -149,10 +169,9 @@ with tab_out_and_back:
                     elevation_data = wr.get_elevation_for_coords(route_coords)
                     m = wr.plot_route_with_elevation(route_coords, elevation_data)
 
-                    # Dynamic map height based on route length
                     route_length_miles = wr.calculate_route_distance(route_coords) / 1609.34
                     map_height = min(800, 400 + int(route_length_miles * 20))
-                    
+
                     map_html = m.get_root().render()
                     html(map_html, height=map_height, scrolling=True)
 
@@ -175,6 +194,7 @@ with tab_out_and_back:
                     st.error("❌ Route could not be generated.")
         else:
             st.error("❌ Please enter a valid starting location.")
+
 
 # --- DESTINATION TAB ---
 with tab_destination:
