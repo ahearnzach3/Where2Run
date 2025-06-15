@@ -202,25 +202,26 @@ with tab_destination:
         st.session_state.dest_flow_stage = "initial"
 
     with st.container():
-        # 📍 Starting Location (searchbox)
-        start_coords = st_searchbox(
+        # 📍 Start: searchbox input, but use Nominatim coordinates
+        start_label = st.session_state.get("dest_start_search-label")
+        dest_label = st.session_state.get("dest_dest_search-label")
+
+        st_searchbox(
             search_function=wr.search_places,
             placeholder="Start typing your starting address",
             label="📍 Enter your starting location",
             key="dest_start_search"
         )
-
-        # 🏁 Destination Location (searchbox)
-        selected_dest = st_searchbox(
+        st_searchbox(
             search_function=wr.search_places,
             placeholder="Enter destination location",
             label="🏁 Destination address",
             key="dest_dest_search"
         )
 
-        # Extract destination label and use Nominatim-based coordinates
-        destination_label = st.session_state.get("dest_dest_search-label", None)
-        destination_coords = wr.get_coordinates(destination_label) if destination_label else None
+        # 🔄 Geocode both using Nominatim
+        start_coords = wr.get_coordinates(start_label) if start_label else None
+        destination_coords = wr.get_coordinates(dest_label) if dest_label else None
 
     st.markdown("---")
 
@@ -231,7 +232,7 @@ with tab_destination:
                     start_coords,
                     destination_coords,
                     elevation_preference="Normal",
-                    destination_label=destination_label
+                    destination_label=dest_label
                 )
 
                 if route_coords:
