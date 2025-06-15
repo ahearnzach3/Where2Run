@@ -211,24 +211,27 @@ with tab_destination:
         )
 
         # 🏁 Destination Location (searchbox)
-        destination_coords = st_searchbox(
+        selected_dest = st_searchbox(
             search_function=wr.search_places,
             placeholder="Enter destination location",
             label="🏁 Destination address",
             key="dest_dest_search"
         )
 
+        # Extract destination label and use Nominatim-based coordinates
+        destination_label = st.session_state.get("dest_dest_search-label", None)
+        destination_coords = wr.get_coordinates(destination_label) if destination_label else None
+
     st.markdown("---")
 
     if st.button("Generate Destination Route 🚀", key="dest_button"):
         if start_coords and destination_coords:
             with st.spinner("Generating destination route..."):
-                destination_label = st.session_state.get("dest_dest_search-label", "Destination")
                 route_coords, one_way_miles = wr.generate_destination_route(
                     start_coords,
                     destination_coords,
                     elevation_preference="Normal",
-                    destination_label=destination_label  # 📌 Triggers nearest entry detection
+                    destination_label=destination_label
                 )
 
                 if route_coords:
