@@ -45,7 +45,7 @@ with tab_loop:
         route_env = st.selectbox(
             "🌿 Route Environment Preference (Optional)", 
             ["None", "Prefer Trails", "Scenic", "Shaded", "Suburban", "Urban"], 
-            key="out_env_select"
+            key="loop_env_select"
         )
         route_env = None if route_env == "None" else route_env.lower()
 
