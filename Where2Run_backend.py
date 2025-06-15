@@ -204,8 +204,9 @@ def search_places(query):
     resp = requests.get(url, params=params)
     results = resp.json().get("features", []) if resp.ok else []
 
-    # ✅ This format shows only the name in UI but returns lat/lon
-    return [(f["place_name"], tuple(f["center"][::-1])) for f in results]
+    # ✅ Return place_name only so st_searchbox captures label
+    return [f["place_name"] for f in results]
+
 
 # 📄 Load Bridges Preset CSV
 bridges_preset = pd.read_csv("Preset Routes/bridges_preset_route.csv")
