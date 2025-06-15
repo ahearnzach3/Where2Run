@@ -53,6 +53,12 @@ os.makedirs(OVERPASS_CACHE_DIR, exist_ok=True)
 
 def _hash_query(query: str) -> str:
     return hashlib.md5(query.encode('utf-8')).hexdigest()
+    
+OVERPASS_ENDPOINTS = [
+    "https://overpass-api.de/api/interpreter",
+    "https://lz4.overpass-api.de/api/interpreter",
+    "https://z.overpass-api.de/api/interpreter"
+]
 
 def run_overpass_query(query: str, cache_minutes=60):
     cache_key = _hash_query(query)
@@ -64,37 +70,59 @@ def run_overpass_query(query: str, cache_minutes=60):
                 return json.load(f)
 
     print("📡 Querying Overpass API...")
-    try:
-        response = requests.get("https://overpass-api.de/api/interpreter", params={"data": query}, timeout=30)
-        response.raise_for_status()
-        result = response.json()
+    for endpoint in OVERPASS_ENDPOINTS:
+        try:
+            response = requests.get(endpoint, params={"data": query}, timeout=30)
+            response.raise_for_status()
+            result = response.json()
 
-        with open(cache_path, "w") as f:
-            json.dump(result, f)
+            with open(cache_path, "w") as f:
+                json.dump(result, f)
 
-        return result
-    except Exception as e:
-        print("❌ Overpass API error:", e)
-        return None
+            print(f"✅ Overpass response from: {endpoint}")
+            return result
+        except Exception as e:
+            print(f"❌ Failed with endpoint {endpoint}: {e}")
 
-def has_matching_environment(lat, lon, mode="trail", radius=300):
-    if mode == "trail":
-        tag_query = """
-            way["highway"~"path|footway|bridleway"](around:{radius},{lat},{lon});
-            way["natural"~"wood|scrub|grassland"](around:{radius},{lat},{lon});
-            way["surface"~"unpaved|dirt|grass"](around:{radius},{lat},{lon});
-            way["leisure"="park"](around:{radius},{lat},{lon});
-        """
-    elif mode == "suburban":
-        tag_query = """
-            way["highway"="residential"](around:{radius},{lat},{lon});
-        """
-    elif mode == "urban":
-        tag_query = """
-            way["highway"~"primary|secondary|tertiary"](around:{radius},{lat},{lon});
-        """
-    else:
-        return False  # default fallback
+    print("❌ All Overpass endpoints failed.")
+    return None
+
+
+def has_matching_environment(lat, lon, mode="suburban", radius=300):
+    if not lat or not lon:
+        st.warning("⚠️ Invalid coordinates provided for environment check.")
+        return False
+
+    tag_templates = {
+        "trail": [
+            'way["highway"~"path|footway|bridleway"](around:{radius},{lat},{lon});',
+            'way["natural"~"wood|scrub|grassland"](around:{radius},{lat},{lon});',
+            'way["surface"~"unpaved|dirt|grass"](around:{radius},{lat},{lon});',
+            'way["leisure"="park"](around:{radius},{lat},{lon});'
+        ],
+        "suburban": [
+            'way["highway"="residential"](around:{radius},{lat},{lon});'
+        ],
+        "urban": [
+            'way["highway"~"primary|secondary|tertiary"](around:{radius},{lat},{lon});'
+        ],
+        "scenic": [
+            'way["leisure"="park"](around:{radius},{lat},{lon});',
+            'way["natural"~"wood|water|scrub"](around:{radius},{lat},{lon});',
+            'way["tourism"~"attraction|viewpoint"](around:{radius},{lat},{lon});'
+        ],
+        "shaded": [
+            'way["natural"="wood"](around:{radius},{lat},{lon});',
+            'way["landuse"="forest"](around:{radius},{lat},{lon});',
+            'way["highway"]["tree_row"](around:{radius},{lat},{lon});'
+        ]
+    }
+
+    if mode not in tag_templates:
+        st.warning(f"⚠️ Unrecognized environment mode: {mode}")
+        return False
+
+    tag_query = "\n".join(tag_templates[mode]).format(radius=radius, lat=lat, lon=lon)
 
     query = f"""
         [out:json][timeout:25];
@@ -102,10 +130,15 @@ def has_matching_environment(lat, lon, mode="trail", radius=300):
             {tag_query}
         );
         out center;
-    """.format(radius=radius, lat=lat, lon=lon)
+    """
 
     data = run_overpass_query(query)
-    return bool(data and data.get("elements"))
+
+    if data is None:
+        st.warning("⚠️ Overpass API error: Unable to check environment. Defaulting to safe route.")
+        return False
+
+    return bool(data.get("elements"))
 
 
 
@@ -133,24 +166,36 @@ def search_places(query):
     # ✅ This format shows only the name in UI but returns lat/lon
     return [(f["place_name"], tuple(f["center"][::-1])) for f in results]
 
-# Helper Function for Trail Preference if trail route cannot be generated based on starting location + distance combination
+# Helper Function for Environment-Based Routing Profile Selection
 def try_route_with_fallback(route_fn, *args, route_environment="Trail", **kwargs):
     lat, lon = kwargs.get("start_coords", (None, None))
 
-    if route_environment == "Trail" and lat and lon:
-        if has_matching_environment(lat, lon, mode="trail"):
-            profile = "foot-hiking"
+    def check_env_and_set(mode, hiking_if_available=False, info_msg=None, fallback_msg=None):
+        if has_matching_environment(lat, lon, mode=mode):
+            if hiking_if_available:
+                return "foot-hiking"
+            return "foot-walking"
         else:
-            profile = "foot-walking"
-            st.info("Trail routes weren't available — generated using nearby paths.")
+            if fallback_msg:
+                st.info(fallback_msg)
+            return "foot-walking"
+
+    # Handle each environment type
+    if route_environment == "Trail":
+        profile = check_env_and_set("trail", hiking_if_available=True,
+                                     fallback_msg="Trail routes weren't available — generated using nearby paths.")
     elif route_environment == "Suburban":
-        profile = "foot-walking"
-        if not has_matching_environment(lat, lon, mode="suburban"):
-            st.info("Neighborhood streets limited — route may include nearby roads.")
+        profile = check_env_and_set("suburban", info_msg="Using neighborhood streets.",
+                                     fallback_msg="Neighborhood streets limited — route may include nearby roads.")
     elif route_environment == "Urban":
-        profile = "foot-walking"
-        if not has_matching_environment(lat, lon, mode="urban"):
-            st.info("Urban areas limited nearby — route may use quieter streets.")
+        profile = check_env_and_set("urban", info_msg="Using main roads.",
+                                     fallback_msg="Urban areas limited nearby — route may use quieter streets.")
+    elif route_environment == "Scenic":
+        profile = check_env_and_set("scenic", hiking_if_available=True,
+                                     fallback_msg="Scenic areas not detected — generated using best available route.")
+    elif route_environment == "Shaded":
+        profile = check_env_and_set("shaded", hiking_if_available=True,
+                                     fallback_msg="Shaded areas not detected — generated using best available route.")
     else:
         profile = "foot-walking"
 
@@ -159,6 +204,7 @@ def try_route_with_fallback(route_fn, *args, route_environment="Trail", **kwargs
     except Exception:
         st.info("Default pedestrian route used due to routing issues.")
         return route_fn(*args, profile="foot-walking", **kwargs), "foot-walking"
+
 
 
 # 📄 Load Bridges Preset CSV
@@ -190,7 +236,18 @@ def calculate_route_distance(coords):
     return total_distance
 
 # 🔁 Loop Route Generator with Retry and Error Margin
-def generate_loop_route_with_preset_retry(start_coords, distance_miles, bridges_coords=None, max_attempts=8, profile="foot-walking"):
+def generate_loop_route_with_preset_retry(start_coords, distance_miles, bridges_coords=None, max_attempts=8, profile=None, route_environment=None):
+    if route_environment:
+        def inner_loop_route(profile, **kwargs):
+            return generate_loop_route_with_preset_retry(
+                start_coords=start_coords,
+                distance_miles=distance_miles,
+                bridges_coords=bridges_coords,
+                max_attempts=max_attempts,
+                profile=profile
+            )
+        return try_route_with_fallback(inner_loop_route, start_coords=start_coords, route_environment=route_environment)[0]
+
     original_target_meters = distance_miles * 1609.34
     allowed_range = (original_target_meters - 1207, original_target_meters + 1207)
     reduction_factor = 0.85
