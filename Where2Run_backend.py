@@ -828,3 +828,4 @@ def save_route_as_gpx(coords, filename="running_route.gpx"):
         f.write(gpx.to_xml())
 
     print(f"✅ GPX route saved as: {filename}")
+
