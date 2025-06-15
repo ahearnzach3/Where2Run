@@ -195,28 +195,36 @@ with tab_out_and_back:
 
 # --- DESTINATION TAB ---
 with tab_destination:
-    st.markdown("## 🏁 Destination Route Generator")
+    st.markdown("## 🏋️ Destination Route Generator")
     st.markdown("---")
 
     if "dest_flow_stage" not in st.session_state:
         st.session_state.dest_flow_stage = "initial"
 
     with st.container():
-        # 📍 Searchbox Inputs (Mapbox UI — returns lat/lon directly)
-        start_coords = st_searchbox(
+        # 📍 Searchbox Inputs (Mapbox UI — return place_name labels)
+        st_searchbox(
             search_function=wr.search_places,
             placeholder="Start typing your starting address",
             label="📍 Enter your starting location",
             key="dest_start_search"
         )
-        destination_coords = st_searchbox(
+        st_searchbox(
             search_function=wr.search_places,
             placeholder="Enter destination location",
-            label="🏁 Destination address",
+            label="🏋️ Destination address",
             key="dest_dest_search"
         )
 
-        # 🧪 Debug print
+        # 🌐 Extract labels for geocoding via Nominatim
+        start_label = st.session_state.get("dest_start_search-label")
+        dest_label = st.session_state.get("dest_dest_search-label")
+
+        start_coords = wr.get_coordinates(start_label) if start_label else None
+        destination_coords = wr.get_coordinates(dest_label) if dest_label else None
+
+        st.write("🧪 Start label:", start_label)
+        st.write("🧪 Destination label:", dest_label)
         st.write("🧪 Start coords:", start_coords)
         st.write("🧪 Destination coords:", destination_coords)
 
@@ -263,13 +271,13 @@ with tab_destination:
     # Post-initial logic
     if st.session_state.dest_flow_stage == "post_initial":
         st.write(f"❓ Distance to destination is {st.session_state.dest_one_way_miles:.2f} miles.")
-        first_decision = st.radio("👉 Do you want to run this exact route?", ["Yes", "No"], key="dest_first_decision_radio")
+        first_decision = st.radio("🔀 Do you want to run this exact route?", ["Yes", "No"], key="dest_first_decision_radio")
 
         if first_decision == "Yes":
             pass
 
         elif first_decision == "No":
-            second_decision = st.radio("👉 Do you want to 'extend' the route or make it a 'round trip'?", ["Extend", "Round Trip"], key="dest_second_decision_radio")
+            second_decision = st.radio("🔀 Do you want to 'extend' the route or make it a 'round trip'?", ["Extend", "Round Trip"], key="dest_second_decision_radio")
 
             if second_decision == "Round Trip":
                 rt_coords = wr.generate_destination_round_trip(
