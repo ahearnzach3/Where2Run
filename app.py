@@ -202,31 +202,21 @@ with tab_destination:
         st.session_state.dest_flow_stage = "initial"
 
     with st.container():
-        # 📍 Searchbox Inputs (Mapbox UI only, for user-friendly autocomplete)
-        st_searchbox(
+        # 📍 Searchbox Inputs (Mapbox UI — returns lat/lon directly)
+        start_coords = st_searchbox(
             search_function=wr.search_places,
             placeholder="Start typing your starting address",
             label="📍 Enter your starting location",
             key="dest_start_search"
         )
-        st_searchbox(
+        destination_coords = st_searchbox(
             search_function=wr.search_places,
             placeholder="Enter destination location",
             label="🏁 Destination address",
             key="dest_dest_search"
         )
 
-        # 🌐 Extract labels for display and geocoding
-        start_label = st.session_state.get("dest_start_search-label", None)
-        dest_label = st.session_state.get("dest_dest_search-label", None)
-
-        st.write("🧪 Start label:", start_label)
-        st.write("🧪 Destination label:", dest_label)
-
-        # 📍 Use Nominatim for final geocoding (more accurate for routing)
-        start_coords = wr.get_coordinates(start_label) if start_label else None
-        destination_coords = wr.get_coordinates(dest_label) if dest_label else None
-
+        # 🧪 Debug print
         st.write("🧪 Start coords:", start_coords)
         st.write("🧪 Destination coords:", destination_coords)
 
