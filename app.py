@@ -78,7 +78,8 @@ with tab_loop:
                         start_coords=start_coords,
                         target_miles=distance_miles,
                         dest_coords=destination_coords,
-                        bridges_coords=preset_coords
+                        bridges_coords=preset_coords,
+                        route_environment=route_env 
                     )
                 else:
                     route_coords = wr.generate_loop_route_with_preset_retry(
