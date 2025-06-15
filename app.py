@@ -227,6 +227,7 @@ with tab_destination:
         st.write("🧪 Destination label:", dest_label)
         st.write("🧪 Start coords:", start_coords)
         st.write("🧪 Destination coords:", destination_coords)
+        st.write("🧪 Raw session state:", st.session_state)
 
     st.markdown("---")
 
