@@ -202,10 +202,7 @@ with tab_destination:
         st.session_state.dest_flow_stage = "initial"
 
     with st.container():
-        # 📍 Start: searchbox input, but use Nominatim coordinates
-        start_label = st.session_state.get("dest_start_search-label")
-        dest_label = st.session_state.get("dest_dest_search-label")
-
+        # 📍 Searchbox Inputs (Mapbox UI only, for user-friendly autocomplete)
         st_searchbox(
             search_function=wr.search_places,
             placeholder="Start typing your starting address",
@@ -219,7 +216,11 @@ with tab_destination:
             key="dest_dest_search"
         )
 
-        # 🔄 Geocode both using Nominatim
+        # 🌐 Extract labels for display and geocoding
+        start_label = st.session_state.get("dest_start_search-label", None)
+        dest_label = st.session_state.get("dest_dest_search-label", None)
+
+        # 📍 Use Nominatim for final geocoding (more accurate for routing)
         start_coords = wr.get_coordinates(start_label) if start_label else None
         destination_coords = wr.get_coordinates(dest_label) if dest_label else None
 
@@ -229,10 +230,9 @@ with tab_destination:
         if start_coords and destination_coords:
             with st.spinner("Generating destination route..."):
                 route_coords, one_way_miles = wr.generate_destination_route(
-                    start_coords,
-                    destination_coords,
+                    start_coords=start_coords,
+                    dest_coords=destination_coords,
                     elevation_preference="Normal",
-                    destination_label=dest_label
                 )
 
                 if route_coords:
@@ -242,8 +242,7 @@ with tab_destination:
                     route_length_miles = wr.calculate_route_distance(route_coords) / 1609.34
                     map_height = min(800, 400 + int(route_length_miles * 20))
 
-                    map_html = m.get_root().render()
-                    html(map_html, height=map_height, scrolling=True)
+                    html(m.get_root().render(), height=map_height, scrolling=True)
 
                     wr.print_run_summary(route_coords, elevation_data, st)
 
@@ -254,7 +253,7 @@ with tab_destination:
 
                     wr.save_route_as_gpx(route_coords, filename="Where2Run_route.gpx")
                     with open("Where2Run_route.gpx", "rb") as file:
-                        st.download_button(label="Download GPX", data=file, file_name="Where2Run_route.gpx", key="dest_gpx_download_initial")
+                        st.download_button("Download GPX", data=file, file_name="Where2Run_route.gpx", key="dest_gpx_download_initial")
 
                     st.session_state.dest_flow_stage = "post_initial"
                     st.session_state.dest_one_way_miles = one_way_miles
@@ -265,6 +264,7 @@ with tab_destination:
         else:
             st.error("❌ Please enter both a valid starting location and destination.")
 
+    # Post-initial logic
     if st.session_state.dest_flow_stage == "post_initial":
         st.write(f"❓ Distance to destination is {st.session_state.dest_one_way_miles:.2f} miles.")
         first_decision = st.radio("👉 Do you want to run this exact route?", ["Yes", "No"], key="dest_first_decision_radio")
@@ -287,8 +287,7 @@ with tab_destination:
                     route_length_miles = wr.calculate_route_distance(rt_coords) / 1609.34
                     map_height = min(800, 400 + int(route_length_miles * 20))
 
-                    map_html = m.get_root().render()
-                    html(map_html, height=map_height, scrolling=True)
+                    html(m.get_root().render(), height=map_height, scrolling=True)
 
                     wr.print_run_summary(rt_coords, elevation_data, st)
 
@@ -299,7 +298,7 @@ with tab_destination:
 
                     wr.save_route_as_gpx(rt_coords, filename="Where2Run_route.gpx")
                     with open("Where2Run_route.gpx", "rb") as file:
-                        st.download_button(label="Download GPX", data=file, file_name="Where2Run_route.gpx", key="dest_gpx_download_roundtrip")
+                        st.download_button("Download GPX", data=file, file_name="Where2Run_route.gpx", key="dest_gpx_download_roundtrip")
 
             elif second_decision == "Extend":
                 target_miles = st.number_input(
@@ -323,8 +322,7 @@ with tab_destination:
                         route_length_miles = wr.calculate_route_distance(extended_coords) / 1609.34
                         map_height = min(800, 400 + int(route_length_miles * 20))
 
-                        map_html = m.get_root().render()
-                        html(map_html, height=map_height, scrolling=True)
+                        html(m.get_root().render(), height=map_height, scrolling=True)
 
                         wr.print_run_summary(extended_coords, elevation_data, st)
 
@@ -335,4 +333,4 @@ with tab_destination:
 
                         wr.save_route_as_gpx(extended_coords, filename="Where2Run_route.gpx")
                         with open("Where2Run_route.gpx", "rb") as file:
-                            st.download_button(label="Download GPX", data=file, file_name="Where2Run_route.gpx", key="dest_gpx_download_extended")
+                            st.download_button("Download GPX", data=file, file_name="Where2Run_route.gpx", key="dest_gpx_download_extended")
