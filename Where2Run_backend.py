@@ -97,64 +97,64 @@ def try_route_with_fallback(route_fn, *args, route_environment="Trail", **kwargs
         print(f"Routing failed with profile={profile}, retrying with foot-walking. Error: {e}")
         return route_fn(*args, profile="foot-walking", **kwargs)
 
-def get_nearest_dest_entry(destination_name, start_coords):
-    import urllib.parse
-    from geopy.distance import geodesic
+# def get_nearest_dest_entry(destination_name, start_coords):
+#     import urllib.parse
+#     from geopy.distance import geodesic
 
-    # Step 1: Use Nominatim to get bounding box around destination
-    nom_url = f"https://nominatim.openstreetmap.org/search?format=json&q={urllib.parse.quote(destination_name)}"
-    try:
-        resp = requests.get(nom_url, headers={"User-Agent": "where2run-app"})
-        data = resp.json()
-        if not data:
-            print(f"❌ No geocoding results for: {destination_name}")
-            return None
+#     # Step 1: Use Nominatim to get bounding box around destination
+#     nom_url = f"https://nominatim.openstreetmap.org/search?format=json&q={urllib.parse.quote(destination_name)}"
+#     try:
+#         resp = requests.get(nom_url, headers={"User-Agent": "where2run-app"})
+#         data = resp.json()
+#         if not data:
+#             print(f"❌ No geocoding results for: {destination_name}")
+#             return None
 
-        bbox = data[0]["boundingbox"]  # [south, north, west, east]
-        lat_min, lat_max = float(bbox[0]), float(bbox[1])
-        lon_min, lon_max = float(bbox[2]), float(bbox[3])
-    except Exception as e:
-        print("❌ Nominatim lookup failed:", e)
-        return None
+#         bbox = data[0]["boundingbox"]  # [south, north, west, east]
+#         lat_min, lat_max = float(bbox[0]), float(bbox[1])
+#         lon_min, lon_max = float(bbox[2]), float(bbox[3])
+#     except Exception as e:
+#         print("❌ Nominatim lookup failed:", e)
+#         return None
 
-    # Step 2: Overpass query to find entrances or nodes/ways inside the bounding box
-    query = f"""
-    [out:json][timeout:25];
-    (
-      node["entrance"]({lat_min},{lon_min},{lat_max},{lon_max});
-      node["highway"="path"]({lat_min},{lon_min},{lat_max},{lon_max});
-      way["leisure"="park"]({lat_min},{lon_min},{lat_max},{lon_max});
-    );
-    out center;
-    """
-    overpass_data = run_overpass_query(query)
-    if not overpass_data or "elements" not in overpass_data:
-        print("❌ No elements returned from Overpass.")
-        return None
+#     # Step 2: Overpass query to find entrances or nodes/ways inside the bounding box
+#     query = f"""
+#     [out:json][timeout:25];
+#     (
+#       node["entrance"]({lat_min},{lon_min},{lat_max},{lon_max});
+#       node["highway"="path"]({lat_min},{lon_min},{lat_max},{lon_max});
+#       way["leisure"="park"]({lat_min},{lon_min},{lat_max},{lon_max});
+#     );
+#     out center;
+#     """
+#     overpass_data = run_overpass_query(query)
+#     if not overpass_data or "elements" not in overpass_data:
+#         print("❌ No elements returned from Overpass.")
+#         return None
 
-    # Step 3: Find closest point to start_coords
-    nearest = None
-    min_dist = float("inf")
+#     # Step 3: Find closest point to start_coords
+#     nearest = None
+#     min_dist = float("inf")
 
-    for el in overpass_data["elements"]:
-        if "lat" in el and "lon" in el:
-            point = (el["lat"], el["lon"])
-        elif "center" in el:
-            point = (el["center"]["lat"], el["center"]["lon"])
-        else:
-            continue
+#     for el in overpass_data["elements"]:
+#         if "lat" in el and "lon" in el:
+#             point = (el["lat"], el["lon"])
+#         elif "center" in el:
+#             point = (el["center"]["lat"], el["center"]["lon"])
+#         else:
+#             continue
 
-        dist = geodesic(start_coords, point).meters
-        if dist < min_dist:
-            min_dist = dist
-            nearest = point
+#         dist = geodesic(start_coords, point).meters
+#         if dist < min_dist:
+#             min_dist = dist
+#             nearest = point
 
-    if nearest:
-        print(f"✅ Nearest point to '{destination_name}' found at {nearest} ({min_dist:.1f} m away)")
-    else:
-        print("❌ No valid destination entry points found.")
+#     if nearest:
+#         print(f"✅ Nearest point to '{destination_name}' found at {nearest} ({min_dist:.1f} m away)")
+#     else:
+#         print("❌ No valid destination entry points found.")
 
-    return nearest
+#     return nearest
 
 
 # 🔑 OpenRouteService API
@@ -519,15 +519,31 @@ def generate_out_and_back_directional_route(start_coords, distance_miles, direct
 
 
 # 🚩 Destination Route Generator (with optional smart entry point)
-def generate_destination_route(start_coords, dest_coords, elevation_preference="Normal", destination_label=None):
-    try:
-        # Optional: Find better entry point if a label is provided
-        if destination_label:
-            nearest_entry = get_nearest_dest_entry(destination_label, start_coords)
-            if nearest_entry:
-                dest_coords = nearest_entry
-                print(f"📍 Using nearest entry to {destination_label}: {dest_coords}")
+# def generate_destination_route(start_coords, dest_coords, elevation_preference="Normal", destination_label=None):
+#     try:
+#         # Optional: Find better entry point if a label is provided
+#         if destination_label:
+#             nearest_entry = get_nearest_dest_entry(destination_label, start_coords)
+#             if nearest_entry:
+#                 dest_coords = nearest_entry
+#                 print(f"📍 Using nearest entry to {destination_label}: {dest_coords}")
 
+#         route = client.directions(
+#             coordinates=[(start_coords[1], start_coords[0]), (dest_coords[1], dest_coords[0])],
+#             profile="foot-walking",
+#             format="geojson"
+#         )
+#         coords = [(pt[1], pt[0]) for pt in route["features"][0]["geometry"]["coordinates"]]
+#         total_meters = calculate_route_distance(coords)
+#         print(f"📏 Estimated one-way distance: {total_meters / 1609:.2f} miles")
+#         return coords, total_meters / 1609.34
+#     except Exception as e:
+#         print("❌ Error generating destination route:", e)
+#         return None, 0
+
+# 🚩 Destination Route Generator (simplified – no smart entry point)
+def generate_destination_route(start_coords, dest_coords, elevation_preference="Normal"):
+    try:
         route = client.directions(
             coordinates=[(start_coords[1], start_coords[0]), (dest_coords[1], dest_coords[0])],
             profile="foot-walking",
