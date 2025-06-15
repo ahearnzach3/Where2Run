@@ -142,7 +142,8 @@ with tab_out_and_back:
                 route_coords = wr.generate_out_and_back_directional_route(
                     start_coords=start_coords,
                     distance_miles=distance_miles,
-                    direction=direction_preference.lower() if direction_preference != "None" else "n"
+                    direction=direction_preference.lower() if direction_preference != "None" else "n",
+                    route_environment=route_env
                 )
                 if route_coords:
                     elevation_data = wr.get_elevation_for_coords(route_coords)
