@@ -178,15 +178,14 @@ def calculate_route_distance(coords):
     return total_distance
 
 def generate_loop_route_with_preset_retry(start_coords, distance_miles, bridges_coords=None, max_attempts=8, profile="foot-walking", route_environment=None):
-    # If environment preference is specified, reroute this call through the fallback mechanism
     if route_environment:
-        def inner(profile_override):
+        def inner(*, profile):
             return generate_loop_route_with_preset_retry(
                 start_coords=start_coords,
                 distance_miles=distance_miles,
                 bridges_coords=bridges_coords,
                 max_attempts=max_attempts,
-                profile=profile_override
+                profile=profile
             )
         return try_route_with_fallback(inner, start_coords=start_coords, route_environment=route_environment)
 
