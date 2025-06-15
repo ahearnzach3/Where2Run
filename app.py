@@ -192,7 +192,6 @@ with tab_out_and_back:
         else:
             st.error("❌ Please enter a valid starting location.")
 
-
 # --- DESTINATION TAB ---
 with tab_destination:
     st.markdown("## 🏁 Destination Route Generator")
@@ -223,7 +222,17 @@ with tab_destination:
     if st.button("Generate Destination Route 🚀", key="dest_button"):
         if start_coords and destination_coords:
             with st.spinner("Generating destination route..."):
+                # 🧠 Use the Mapbox label for destination name if available
+                destination_label = st.session_state.get("dest_dest_search-label", "Destination")
+
+                # 🔍 Try to get the nearest logical entry point for the destination
+                nearest_entry = wr.get_nearest_dest_entry(destination_label, start_coords)
+                if nearest_entry:
+                    destination_coords = nearest_entry
+                    st.caption(f"📍 Routing to nearest accessible point within **{destination_label}**")
+
                 route_coords, one_way_miles = wr.generate_destination_route(start_coords, destination_coords)
+
                 if route_coords:
                     elevation_data = wr.get_elevation_for_coords(route_coords)
                     m = wr.plot_route_with_elevation(route_coords, elevation_data)
@@ -245,6 +254,7 @@ with tab_destination:
                     with open("Where2Run_route.gpx", "rb") as file:
                         st.download_button(label="Download GPX", data=file, file_name="Where2Run_route.gpx", key="dest_gpx_download_initial")
 
+                    # Update session state
                     st.session_state.dest_flow_stage = "post_initial"
                     st.session_state.dest_one_way_miles = one_way_miles
                     st.session_state.dest_start_coords = start_coords
