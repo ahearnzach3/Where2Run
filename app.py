@@ -202,7 +202,7 @@ with tab_destination:
         st.session_state.dest_flow_stage = "initial"
 
     with st.container():
-        # 📍 Searchbox Inputs (Mapbox UI — return place_name labels)
+        # 📍 Searchbox Inputs (Mapbox UI — returns lat/lon and stores label)
         st_searchbox(
             search_function=wr.search_places,
             placeholder="Start typing your starting address",
@@ -216,10 +216,11 @@ with tab_destination:
             key="dest_dest_search"
         )
 
-        # 🌐 Extract labels for geocoding via Nominatim
-        start_label = st.session_state.get("dest_start_search-label")
-        dest_label = st.session_state.get("dest_dest_search-label")
+        # ✅ Extract the selected place_name (label) for each
+        start_label = st.session_state.get("dest_start_search", {}).get("result")
+        dest_label = st.session_state.get("dest_dest_search", {}).get("result")
 
+        # 🌍 Use Nominatim to geocode to coordinates
         start_coords = wr.get_coordinates(start_label) if start_label else None
         destination_coords = wr.get_coordinates(dest_label) if dest_label else None
 
