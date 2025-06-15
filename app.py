@@ -147,7 +147,7 @@ with route_tabs[2]:
             st.error("❌ Please enter both a valid starting location and destination.")
 
     if st.session_state.dest_flow_stage == "post_initial":
-        st.write(f"❓ Distance to {destination_address} is {st.session_state.dest_one_way_miles:.2f} miles.")
+        st.write(f"❓ Distance to {st.session_state.dest_destination_coords} is {st.session_state.dest_one_way_miles:.2f} miles.")
         first_decision = st.radio("👉 Do you want to run this exact route?", ["Yes", "No"], key="dest_first_decision_radio")
 
         if first_decision == "No":
