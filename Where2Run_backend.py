@@ -11,6 +11,7 @@ from geopy.distance import geodesic
 # from IPython.display import display -Presence of this code breaks the Streamlit app
 import numpy as np
 import pandas as pd
+import math
 import time
 import random
 from geopy.exc import GeocoderTimedOut
@@ -278,10 +279,7 @@ def generate_loop_with_included_destination_v3(start_coords, target_miles, dest_
 
 
 # 🚩 Out-and-Back with Forced Directional Waypoint (Midpoint Waypoint Method)
-def generate_out_and_back_directional_route(start_coords, distance_miles, direction, max_attempts=5):
-    import math
-    import time
-    import random
+def generate_out_and_back_directional_route(start_coords, distance_miles, direction, profile="foot-walking", max_attempts=5):
 
     target_total_meters = distance_miles * 1609.34
     half_meters = target_total_meters / 2
@@ -301,7 +299,6 @@ def generate_out_and_back_directional_route(start_coords, distance_miles, direct
 
     while attempt < max_attempts:
         try:
-            # 🎲 Add random jitter ±15° to heading
             jitter_deg = random.uniform(-15, 15)
             heading_deg = (heading_deg_base + jitter_deg) % 360
 
@@ -317,14 +314,14 @@ def generate_out_and_back_directional_route(start_coords, distance_miles, direct
             midpoint = (start_coords[0] + delta_lat, start_coords[1] + delta_lon)
             print(f"📍 Midpoint forced at approx {midpoint}")
 
-            # Path: start → midpoint → start
+            # Use dynamic profile (hiking or walking)
             route = client.directions(
                 coordinates=[
                     (start_coords[1], start_coords[0]),
                     (midpoint[1], midpoint[0]),
                     (start_coords[1], start_coords[0])
                 ],
-                profile="foot-walking",
+                profile=profile,
                 format="geojson"
             )
             coords = [(pt[1], pt[0]) for pt in route["features"][0]["geometry"]["coordinates"]]
@@ -353,6 +350,7 @@ def generate_out_and_back_directional_route(start_coords, distance_miles, direct
     if best_coords:
         print(f"⚠️ Best effort route distance: {best_total_meters / 1609.34:.2f} miles")
     return best_coords if best_coords else None
+
 
 
 # 🚩 Destination Route Generator
