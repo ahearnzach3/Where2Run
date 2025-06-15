@@ -67,6 +67,17 @@ def search_places(query):
     # ✅ This format shows only the name in UI but returns lat/lon
     return [(f["place_name"], tuple(f["center"][::-1])) for f in results]
 
+# Helper Function for Trail Preference if trail route cannot be generated based on starting location + distance combination
+def try_route_with_fallback(route_fn, *args, prefer_trails=False, **kwargs):
+    profile = "foot-hiking" if prefer_trails else "foot-walking"
+    try:
+        return route_fn(*args, profile=profile, **kwargs), profile
+    except Exception:
+        if prefer_trails:
+            st.warning("Trail paths weren't available for your selected area. We generated your route using nearby roads.")
+        return route_fn(*args, profile="foot-walking", **kwargs), "foot-walking"
+
+
 # 📄 Load Bridges Preset CSV
 bridges_preset = pd.read_csv("Preset Routes/bridges_preset_route.csv")
 bridges_route_coords = list(zip(bridges_preset["Latitude"], bridges_preset["Longitude"]))
@@ -96,7 +107,7 @@ def calculate_route_distance(coords):
     return total_distance
 
 # 🔁 Loop Route Generator with Retry and Error Margin
-def generate_loop_route_with_preset_retry(start_coords, distance_miles, bridges_coords=None, max_attempts=8):
+def generate_loop_route_with_preset_retry(start_coords, distance_miles, bridges_coords=None, max_attempts=8, profile="foot-walking"):
     original_target_meters = distance_miles * 1609.34
     allowed_range = (original_target_meters - 1207, original_target_meters + 1207)
     reduction_factor = 0.85
@@ -116,7 +127,7 @@ def generate_loop_route_with_preset_retry(start_coords, distance_miles, bridges_
                     print("🔄 Routing to preset start...")
                     to_bridges = client.directions(
                         coordinates=[(start_coords[1], start_coords[0]), (bridges_coords[0][1], bridges_coords[0][0])],
-                        profile="foot-walking", format="geojson"
+                        profile=profile, format="geojson"
                     )
                     to_bridges_coords = [(pt[1], pt[0]) for pt in to_bridges["features"][0]["geometry"]["coordinates"]]
                     route_coords += to_bridges_coords
@@ -132,7 +143,7 @@ def generate_loop_route_with_preset_retry(start_coords, distance_miles, bridges_
 
             round_trip = client.directions(
                 coordinates=[(origin[1], origin[0])],
-                profile="foot-walking",
+                profile=profile,
                 format="geojson",
                 options={
                     "round_trip": {
@@ -157,11 +168,13 @@ def generate_loop_route_with_preset_retry(start_coords, distance_miles, bridges_
                 attempt += 1
 
         except Exception as e:
-            print("❌ Error generating loop route:", e)
+            print(f"❌ Error generating loop route (Attempt {attempt+1}):", e)
             attempt += 1
 
     print("⚠️ Returning best-effort route despite missed margin.")
     return route_coords if route_coords else None
+
+
 
 # 🚩 Loop-with-Destination v3 — Smart Loop + Destination + Return
 def generate_loop_with_included_destination_v3(start_coords, target_miles, dest_coords, bridges_coords=None, max_attempts=8):
