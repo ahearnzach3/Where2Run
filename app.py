@@ -224,12 +224,6 @@ with tab_destination:
         start_coords = wr.get_coordinates(start_label) if start_label else None
         destination_coords = wr.get_coordinates(dest_label) if dest_label else None
 
-        st.write("🧪 Start label:", start_label)
-        st.write("🧪 Destination label:", dest_label)
-        st.write("🧪 Start coords:", start_coords)
-        st.write("🧪 Destination coords:", destination_coords)
-        st.write("🧪 Raw session state:", st.session_state)
-
     st.markdown("---")
 
     if st.button("Generate Destination Route 🚀", key="dest_button"):
