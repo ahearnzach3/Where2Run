@@ -27,12 +27,21 @@ with route_tabs[0]:
     )
     start_coords = selected_place if selected_place else None
 
-    distance_miles = st.number_input("📏 Desired loop distance (miles)", min_value=1.0, value=6.0, step=0.5, key="loop_distance")
+    distance_miles = st.number_input(
+        "📏 Desired loop distance (miles)",
+        min_value=1.0, value=6.0, step=0.5,
+        key="loop_distance"
+    )
+
     use_preset = st.checkbox("🌉 Include Bridges preset?", key="loop_preset")
     include_destination = st.checkbox("📍 Include destination on loop?", key="loop_include_dest")
     destination_coords = None
 
-    route_env = st.radio("🏙️ Route Type", ["Trail", "Suburban", "Urban"], key="loop_env")
+    route_env = st.radio(
+        "🏙️ Route Type",
+        ["Trail", "Suburban", "Urban", "Scenic", "Shaded"],
+        key="loop_env"
+    )
 
     if include_destination:
         selected_dest = st_searchbox(
@@ -70,6 +79,7 @@ with route_tabs[0]:
                 wr.display_route_results(route_coords, st)
         else:
             st.error("❌ Please enter a valid starting location.")
+
 
 # --- OUT-AND-BACK TAB ---
 with route_tabs[1]:
