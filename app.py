@@ -25,7 +25,7 @@ with tab_loop:
         # 📍 Searchbox Input (Mapbox UI — returns lat/lon and stores label)
         st_searchbox(
             search_function=wr.search_places,
-            placeholder="Start typing your starting address",
+            placeholder="Start typing your starting address (e.g., 400 E Morehead St, Charlotte, NC)",
             label="📍 Enter your starting location",
             key="loop_start_search"
         )
@@ -59,7 +59,7 @@ with tab_loop:
         if include_destination:
             st_searchbox(
                 search_function=wr.search_places,
-                placeholder="Enter destination location",
+                placeholder="Enter destination location (e.g., Freedom Park, Charlotte, NC)",
                 label="🏁 Destination address",
                 key="loop_dest_search"
             )
@@ -192,7 +192,7 @@ with tab_out_and_back:
 
 # --- DESTINATION TAB ---
 with tab_destination:
-    st.markdown("## 🏋️ Destination Route Generator")
+    st.markdown("## 🏁 Destination Route Generator")
     st.markdown("---")
 
     if "dest_flow_stage" not in st.session_state:
@@ -202,14 +202,14 @@ with tab_destination:
         # 📍 Searchbox Inputs (Mapbox UI — returns lat/lon and stores label)
         st_searchbox(
             search_function=wr.search_places,
-            placeholder="Start typing your starting address",
+            placeholder="Start typing your starting address (e.g., 400 E Morehead St, Charlotte, NC)",
             label="📍 Enter your starting location",
             key="dest_start_search"
         )
         st_searchbox(
             search_function=wr.search_places,
-            placeholder="Enter destination location",
-            label="🏋️ Destination address",
+            placeholder="Enter destination location (e.g., Freedom Park, Charlotte, NC)",
+            label="🏁 Destination address",
             key="dest_dest_search"
         )
 
