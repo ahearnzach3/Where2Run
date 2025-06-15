@@ -259,7 +259,20 @@ def generate_loop_route_with_preset_retry(start_coords, distance_miles, bridges_
 
 
 # 🚩 Loop-with-Destination v3 — Smart Loop + Destination + Return
-def generate_loop_with_included_destination_v3(start_coords, target_miles, dest_coords, bridges_coords=None, max_attempts=8):
+def generate_loop_with_included_destination_v3(start_coords, target_miles, dest_coords, bridges_coords=None, max_attempts=8, profile="foot-walking", route_environment=None):
+    if route_environment:
+        def inner(profile, **_):
+            return generate_loop_with_included_destination_v3(
+                start_coords=start_coords,
+                target_miles=target_miles,
+                dest_coords=dest_coords,
+                bridges_coords=bridges_coords,
+                max_attempts=max_attempts,
+                profile=profile
+            )
+        return try_route_with_fallback(inner, start_coords=start_coords, route_environment=route_environment)
+
+    # Proceed with original routing logic using provided profile
     target_total_meters = target_miles * 1609.34
     allowed_range = (target_total_meters - 1207, target_total_meters + 1207)
     reduction_factor = 0.85
@@ -268,7 +281,7 @@ def generate_loop_with_included_destination_v3(start_coords, target_miles, dest_
     # Pre-calculate Destination → Start distance (for budget)
     back_route = client.directions(
         coordinates=[(dest_coords[1], dest_coords[0]), (start_coords[1], start_coords[0])],
-        profile="foot-walking",
+        profile=profile,
         format="geojson"
     )
     back_coords = [(pt[1], pt[0]) for pt in back_route["features"][0]["geometry"]["coordinates"]]
@@ -289,7 +302,7 @@ def generate_loop_with_included_destination_v3(start_coords, target_miles, dest_
                 print("✅ Including Bridges preset.")
                 to_bridges = client.directions(
                     coordinates=[(start_coords[1], start_coords[0]), (bridges_coords[0][1], bridges_coords[0][0])],
-                    profile="foot-walking", format="geojson"
+                    profile=profile, format="geojson"
                 )
                 to_bridges_coords = [(pt[1], pt[0]) for pt in to_bridges["features"][0]["geometry"]["coordinates"]]
                 loop_coords += to_bridges_coords
@@ -301,7 +314,7 @@ def generate_loop_with_included_destination_v3(start_coords, target_miles, dest_
             # Creative loop
             round_trip = client.directions(
                 coordinates=[(origin_coords[1], origin_coords[0])],
-                profile="foot-walking", format="geojson",
+                profile=profile, format="geojson",
                 options={
                     "round_trip": {
                         "length": loop_budget_meters,
@@ -312,41 +325,39 @@ def generate_loop_with_included_destination_v3(start_coords, target_miles, dest_
             )
             loop_only_coords = [(pt[1], pt[0]) for pt in round_trip["features"][0]["geometry"]["coordinates"]]
 
-            
             # Midpoint to force passing through
             mid_lat = (loop_only_coords[-1][0] + dest_coords[0]) / 2
             mid_lon = (loop_only_coords[-1][1] + dest_coords[1]) / 2
             via_point = (mid_lat, mid_lon)
-            
-            # Force route: loop → via → destination
+
+            # Route: loop → via → destination
             to_dest_route = client.directions(
                 coordinates=[
                     (loop_only_coords[-1][1], loop_only_coords[-1][0]),
                     (via_point[1], via_point[0]),
                     (dest_coords[1], dest_coords[0])
                 ],
-                profile="foot-walking", format="geojson"
+                profile=profile, format="geojson"
             )
             to_dest_coords = [(pt[1], pt[0]) for pt in to_dest_route["features"][0]["geometry"]["coordinates"]]
             to_dest_meters = calculate_route_distance(to_dest_coords)
 
-            # Combine route
+            # Combine full route
             full_coords = loop_coords + loop_only_coords + to_dest_coords + back_coords
             total_meters = calculate_route_distance(full_coords)
 
-            print(f"📏 Full distance: {total_meters/1609.34:.2f} mi")
+            print(f"📏 Full distance: {total_meters / 1609.34:.2f} mi")
 
-            # Check distance range
+            # Distance validation
             if allowed_range[0] <= total_meters <= allowed_range[1]:
                 print("✅ Distance within range — returning route.")
                 return full_coords
 
-            # Save best attempt
+            # Track best attempt
             if abs(total_meters - target_total_meters) < abs(best_total_meters - target_total_meters):
                 best_coords = full_coords
                 best_total_meters = total_meters
 
-            # Adjust for next try
             reduction_factor -= 0.05
             target_total_meters = max(target_total_meters * reduction_factor, 3200)
             attempt += 1
@@ -357,6 +368,7 @@ def generate_loop_with_included_destination_v3(start_coords, target_miles, dest_
 
     print("⚠️ Returning best-effort route.")
     return best_coords if best_coords else None
+
 
 
 # 🚩 Out-and-Back with Forced Directional Waypoint (Midpoint Waypoint Method)
