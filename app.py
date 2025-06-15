@@ -118,31 +118,32 @@ with tab_out_and_back:
     st.markdown("---")
 
     with st.container():
-        start_location = st.text_input(
-    "📍 Enter your starting location", placeholder="e.g., 400 E Morehead St, Charlotte, NC --> (Dowd YMCA)", key="out_start")
+        start_location = st.text_input("📍 Enter your starting location", placeholder="e.g., 400 E Morehead St, Charlotte, NC --> (Dowd YMCA)", key="out_start")
         start_coords = wr.get_coordinates(start_location) if start_location else None
 
         distance_miles = st.number_input("📏 Total out-and-back distance (miles)", min_value=1.0, value=6.0, step=0.5, key="out_distance")
         direction_preference = st.selectbox("🎯 Bias route in direction?", ["None", "N", "S", "E", "W"], key="out_direction")
+        prefer_trails = st.checkbox("🏞️ Prefer trails (use park paths and unpaved trails)", key="out_trails")
 
     st.markdown("---")
 
     if st.button("Generate Out-and-Back Route 🚀", key="out_button"):
         if start_coords:
             with st.spinner("Generating out-and-back route..."):
-                route_coords = wr.generate_out_and_back_directional_route(
+                route_coords, _ = wr.try_route_with_fallback(
+                    wr.generate_out_and_back_directional_route,
                     start_coords=start_coords,
                     distance_miles=distance_miles,
-                    direction=direction_preference.lower() if direction_preference != "None" else "n"
+                    direction=direction_preference.lower() if direction_preference != "None" else "n",
+                    prefer_trails=prefer_trails
                 )
                 if route_coords:
                     elevation_data = wr.get_elevation_for_coords(route_coords)
                     m = wr.plot_route_with_elevation(route_coords, elevation_data)
 
-                    # Dynamic map height based on route length
                     route_length_miles = wr.calculate_route_distance(route_coords) / 1609.34
                     map_height = min(800, 400 + int(route_length_miles * 20))
-                    
+
                     map_html = m.get_root().render()
                     html(map_html, height=map_height, scrolling=True)
 
