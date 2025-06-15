@@ -17,6 +17,9 @@ import random
 from geopy.exc import GeocoderTimedOut
 import streamlit as st
 import requests
+import hashlib
+import os
+import json
 
 # 🔑 OpenRouteService API
 API_KEY = st.secrets["ORS_API_KEY"]
@@ -44,6 +47,68 @@ selected = st.selectbox("Choose a location", suggestions) if suggestions else No
 if selected:
     st.write("✅ Selected:", selected)
 
+# Overpass cache setup
+OVERPASS_CACHE_DIR = "cache/overpass"
+os.makedirs(OVERPASS_CACHE_DIR, exist_ok=True)
+
+def _hash_query(query: str) -> str:
+    return hashlib.md5(query.encode('utf-8')).hexdigest()
+
+def run_overpass_query(query: str, cache_minutes=60):
+    cache_key = _hash_query(query)
+    cache_path = os.path.join(OVERPASS_CACHE_DIR, f"{cache_key}.json")
+
+    if os.path.exists(cache_path):
+        if time.time() - os.path.getmtime(cache_path) < cache_minutes * 60:
+            with open(cache_path, "r") as f:
+                return json.load(f)
+
+    print("📡 Querying Overpass API...")
+    try:
+        response = requests.get("https://overpass-api.de/api/interpreter", params={"data": query}, timeout=30)
+        response.raise_for_status()
+        result = response.json()
+
+        with open(cache_path, "w") as f:
+            json.dump(result, f)
+
+        return result
+    except Exception as e:
+        print("❌ Overpass API error:", e)
+        return None
+
+def has_matching_environment(lat, lon, mode="trail", radius=300):
+    if mode == "trail":
+        tag_query = """
+            way["highway"~"path|footway|bridleway"](around:{radius},{lat},{lon});
+            way["natural"~"wood|scrub|grassland"](around:{radius},{lat},{lon});
+            way["surface"~"unpaved|dirt|grass"](around:{radius},{lat},{lon});
+            way["leisure"="park"](around:{radius},{lat},{lon});
+        """
+    elif mode == "suburban":
+        tag_query = """
+            way["highway"="residential"](around:{radius},{lat},{lon});
+        """
+    elif mode == "urban":
+        tag_query = """
+            way["highway"~"primary|secondary|tertiary"](around:{radius},{lat},{lon});
+        """
+    else:
+        return False  # default fallback
+
+    query = f"""
+        [out:json][timeout:25];
+        (
+            {tag_query}
+        );
+        out center;
+    """.format(radius=radius, lat=lat, lon=lon)
+
+    data = run_overpass_query(query)
+    return bool(data and data.get("elements"))
+
+
+
 def get_coords_from_place_name(place_name):
     url = f"https://api.mapbox.com/geocoding/v5/mapbox.places/{place_name}.json"
     params = {"access_token": st.secrets["MAPBOX_TOKEN"], "limit": 1}
@@ -69,13 +134,30 @@ def search_places(query):
     return [(f["place_name"], tuple(f["center"][::-1])) for f in results]
 
 # Helper Function for Trail Preference if trail route cannot be generated based on starting location + distance combination
-def try_route_with_fallback(route_fn, *args, prefer_trails=False, **kwargs):
-    profile = "foot-hiking" if prefer_trails else "foot-walking"
+def try_route_with_fallback(route_fn, *args, route_environment="Trail", **kwargs):
+    lat, lon = kwargs.get("start_coords", (None, None))
+
+    if route_environment == "Trail" and lat and lon:
+        if has_matching_environment(lat, lon, mode="trail"):
+            profile = "foot-hiking"
+        else:
+            profile = "foot-walking"
+            st.info("Trail routes weren't available — generated using nearby paths.")
+    elif route_environment == "Suburban":
+        profile = "foot-walking"
+        if not has_matching_environment(lat, lon, mode="suburban"):
+            st.info("Neighborhood streets limited — route may include nearby roads.")
+    elif route_environment == "Urban":
+        profile = "foot-walking"
+        if not has_matching_environment(lat, lon, mode="urban"):
+            st.info("Urban areas limited nearby — route may use quieter streets.")
+    else:
+        profile = "foot-walking"
+
     try:
         return route_fn(*args, profile=profile, **kwargs), profile
     except Exception:
-        if prefer_trails:
-            st.warning("Trail paths weren't available for your selected area. We generated your route using nearby roads.")
+        st.info("Default pedestrian route used due to routing issues.")
         return route_fn(*args, profile="foot-walking", **kwargs), "foot-walking"
 
 
@@ -384,13 +466,13 @@ def generate_destination_round_trip(start_coords, dest_coords):
         return None
 
 # 🚩 Improved Destination Extension Route with Retry + Margin + Detailed Distance Print
-def generate_extended_destination_route(start_coords, dest_coords, target_miles, max_attempts=5):
+def generate_extended_destination_route(start_coords, dest_coords, target_miles, prefer_trails=False, max_attempts=5):
     target_total_meters = target_miles * 1609.34
     allowed_range = (target_total_meters - 1207, target_total_meters + 1207)
     attempt = 0
-    reduction_factor = 0.85  # same starting factor as loop routes
+    reduction_factor = 0.85
 
-    # Calculate one-way distance first
+    # Get direct route to destination (always foot-walking for optimality)
     to_dest_route = client.directions(
         coordinates=[(start_coords[1], start_coords[0]), (dest_coords[1], dest_coords[0])],
         profile="foot-walking",
@@ -400,58 +482,53 @@ def generate_extended_destination_route(start_coords, dest_coords, target_miles,
     to_dest_meters = calculate_route_distance(to_dest_coords)
 
     loop_length_meters = max((target_total_meters - to_dest_meters), 500)
-
     best_coords = None
     best_total_meters = 0
 
+    def generate_loop(profile):
+        return client.directions(
+            coordinates=[(start_coords[1], start_coords[0])],
+            profile=profile,
+            format="geojson",
+            options={
+                "round_trip": {
+                    "length": loop_length_meters,
+                    "points": 20,
+                    "seed": random.randint(0, 10000)
+                }
+            }
+        )
+
     while attempt < max_attempts:
         try:
-            print(f"🔄 Attempt {attempt+1}: Generating loop of ~{loop_length_meters / 1609:.2f} miles at start, then to destination.")
+            print(f"🔄 Attempt {attempt+1}: Generating loop of ~{loop_length_meters / 1609:.2f} miles then to destination.")
 
-            # Generate loop first
-            round_trip = client.directions(
-                coordinates=[(start_coords[1], start_coords[0])],
-                profile="foot-walking",
-                format="geojson",
-                options={
-                    "round_trip": {
-                        "length": loop_length_meters,
-                        "points": 20,
-                        "seed": random.randint(0, 10000)
-                    }
-                }
-            )
-            loop_coords = [(pt[1], pt[0]) for pt in round_trip["features"][0]["geometry"]["coordinates"]]
+            loop_response, profile_used = try_route_with_fallback(generate_loop, prefer_trails=prefer_trails)
+            loop_coords = [(pt[1], pt[0]) for pt in loop_response["features"][0]["geometry"]["coordinates"]]
 
-            # Combine full route
             full_coords = loop_coords + to_dest_coords
             total_meters = calculate_route_distance(full_coords)
             total_miles = total_meters / 1609.34
 
-            print(f"📏 Total extended loop segment distance: {calculate_route_distance(loop_coords)/1609.34:.2f} miles")
-            print(f"📏 To-destination segment distance: {to_dest_meters/1609.34:.2f} miles")
-            print(f"📏 Total route distance: {total_miles:.2f} miles")
+            print(f"📏 Loop: {calculate_route_distance(loop_coords)/1609.34:.2f} mi | Destination leg: {to_dest_meters/1609.34:.2f} mi | Total: {total_miles:.2f} mi")
 
-            # Check if within margin
             if allowed_range[0] <= total_meters <= allowed_range[1]:
-                print("🌟 Extended route distance within acceptable range.")
+                print("🌟 Extended route within range.")
                 return full_coords
 
-            # Save best attempt so far
             if best_coords is None or abs(total_meters - target_total_meters) < abs(best_total_meters - target_total_meters):
                 best_coords = full_coords
                 best_total_meters = total_meters
 
-            # Adjust for next attempt
             reduction_factor -= 0.05
             loop_length_meters = max(loop_length_meters * reduction_factor, 500)
             attempt += 1
 
         except Exception as e:
-            print("❌ Error generating extended destination route:", e)
+            print("❌ Error generating loop + destination route:", e)
             attempt += 1
 
-    print("⚠️ Returning best-effort extended route despite missed margin.")
+    print("⚠️ Returning best-effort extended route.")
     return best_coords if best_coords else None
 
 
