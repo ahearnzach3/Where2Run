@@ -220,13 +220,15 @@ with tab_destination:
         start_label = st.session_state.get("dest_start_search-label", None)
         dest_label = st.session_state.get("dest_dest_search-label", None)
 
-        print("Start label:", start_label)
-        print("Destination label:", dest_label)
-
+        st.write("🧪 Start label:", start_label)
+        st.write("🧪 Destination label:", dest_label)
 
         # 📍 Use Nominatim for final geocoding (more accurate for routing)
         start_coords = wr.get_coordinates(start_label) if start_label else None
         destination_coords = wr.get_coordinates(dest_label) if dest_label else None
+
+        st.write("🧪 Start coords:", start_coords)
+        st.write("🧪 Destination coords:", destination_coords)
 
     st.markdown("---")
 
