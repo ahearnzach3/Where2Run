@@ -146,13 +146,14 @@ with tab_out_and_back:
             key="out_direction"
         )
 
-        # 🧭 Route Environment Preference
+        # 🧭 Route Environment Preference (Expanded Options)
         route_env = st.selectbox(
             "🌿 Route Preference (Optional)", 
-            ["None", "Prefer Trails", "Scenic", "Shaded"], 
+            ["None", "Prefer Trails", "Scenic", "Shaded", "Suburban", "Urban"], 
             key="out_env_select"
         )
         route_env = None if route_env == "None" else route_env.lower()
+
 
     st.markdown("---")
 
