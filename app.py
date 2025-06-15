@@ -127,12 +127,14 @@ with tab_out_and_back:
     st.markdown("---")
 
     with st.container():
-        start_location = st.text_input(
-            "📍 Enter your starting location", 
-            placeholder="e.g., 400 E Morehead St, Charlotte, NC --> (Dowd YMCA)", 
-            key="out_start"
+        # 📍 Start Location with Mapbox Searchbox
+        selected_place = st_searchbox(
+            search_function=wr.search_places,
+            placeholder="📍 Start typing your location (e.g., 400 E Morehead St, Charlotte, NC)",
+            label="Starting Location",
+            key="out_start_search"
         )
-        start_coords = wr.get_coordinates(start_location) if start_location else None
+        start_coords = selected_place if selected_place else None
 
         distance_miles = st.number_input(
             "📏 Total out-and-back distance (miles)", 
@@ -153,7 +155,6 @@ with tab_out_and_back:
             key="out_env_select"
         )
         route_env = None if route_env == "None" else route_env.lower()
-
 
     st.markdown("---")
 
@@ -179,14 +180,9 @@ with tab_out_and_back:
                     wr.print_run_summary(route_coords, elevation_data, st)
 
                     with st.expander("📈 Elevation Charts (click to expand)"):
-                        fig1 = wr.plot_elevation_area_chart(elevation_data)
-                        st.pyplot(fig1)
-
-                        fig2 = wr.plot_cumulative_elevation_gain(elevation_data)
-                        st.pyplot(fig2)
-
-                        fig3 = wr.plot_moving_average_grade(elevation_data)
-                        st.pyplot(fig3)
+                        st.pyplot(wr.plot_elevation_area_chart(elevation_data))
+                        st.pyplot(wr.plot_cumulative_elevation_gain(elevation_data))
+                        st.pyplot(wr.plot_moving_average_grade(elevation_data))
 
                     wr.save_route_as_gpx(route_coords, filename="Where2Run_route.gpx")
                     with open("Where2Run_route.gpx", "rb") as file:
@@ -195,6 +191,7 @@ with tab_out_and_back:
                     st.error("❌ Route could not be generated.")
         else:
             st.error("❌ Please enter a valid starting location.")
+
 
 
 # --- DESTINATION TAB ---
