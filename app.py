@@ -193,23 +193,30 @@ with tab_out_and_back:
             st.error("❌ Please enter a valid starting location.")
 
 
-
 # --- DESTINATION TAB ---
 with tab_destination:
     st.markdown("## 🏁 Destination Route Generator")
     st.markdown("---")
 
-    # Init session state for destination flow
     if "dest_flow_stage" not in st.session_state:
         st.session_state.dest_flow_stage = "initial"
 
     with st.container():
-        start_location = st.text_input(
-    "📍 Enter your starting location", placeholder="e.g., 400 E Morehead St, Charlotte, NC --> (Dowd YMCA)", key="dest_start")
-        start_coords = wr.get_coordinates(start_location) if start_location else None
+        # 📍 Starting Location (searchbox)
+        start_coords = st_searchbox(
+            search_function=wr.search_places,
+            placeholder="Start typing your starting address",
+            label="📍 Enter your starting location",
+            key="dest_start_search"
+        )
 
-        destination_address = st.text_input("🏁 Enter destination location", key="dest_dest_addr")
-        destination_coords = wr.get_coordinates(destination_address) if destination_address else None
+        # 🏁 Destination Location (searchbox)
+        destination_coords = st_searchbox(
+            search_function=wr.search_places,
+            placeholder="Enter destination location",
+            label="🏁 Destination address",
+            key="dest_dest_search"
+        )
 
     st.markdown("---")
 
@@ -221,30 +228,23 @@ with tab_destination:
                     elevation_data = wr.get_elevation_for_coords(route_coords)
                     m = wr.plot_route_with_elevation(route_coords, elevation_data)
 
-                    # Dynamic map height based on route length
                     route_length_miles = wr.calculate_route_distance(route_coords) / 1609.34
                     map_height = min(800, 400 + int(route_length_miles * 20))
-                    
+
                     map_html = m.get_root().render()
                     html(map_html, height=map_height, scrolling=True)
 
                     wr.print_run_summary(route_coords, elevation_data, st)
 
                     with st.expander("📈 Elevation Charts (click to expand)"):
-                        fig1 = wr.plot_elevation_area_chart(elevation_data)
-                        st.pyplot(fig1)
-
-                        fig2 = wr.plot_cumulative_elevation_gain(elevation_data)
-                        st.pyplot(fig2)
-
-                        fig3 = wr.plot_moving_average_grade(elevation_data)
-                        st.pyplot(fig3)
+                        st.pyplot(wr.plot_elevation_area_chart(elevation_data))
+                        st.pyplot(wr.plot_cumulative_elevation_gain(elevation_data))
+                        st.pyplot(wr.plot_moving_average_grade(elevation_data))
 
                     wr.save_route_as_gpx(route_coords, filename="Where2Run_route.gpx")
                     with open("Where2Run_route.gpx", "rb") as file:
                         st.download_button(label="Download GPX", data=file, file_name="Where2Run_route.gpx", key="dest_gpx_download_initial")
 
-                    # Update session state
                     st.session_state.dest_flow_stage = "post_initial"
                     st.session_state.dest_one_way_miles = one_way_miles
                     st.session_state.dest_start_coords = start_coords
@@ -254,13 +254,13 @@ with tab_destination:
         else:
             st.error("❌ Please enter both a valid starting location and destination.")
 
-    # Post initial flow (Extend / Round Trip)
+    # Post-initial flow
     if st.session_state.dest_flow_stage == "post_initial":
-        st.write(f"❓ Distance to {destination_address} is {st.session_state.dest_one_way_miles:.2f} miles.")
+        st.write(f"❓ Distance to destination is {st.session_state.dest_one_way_miles:.2f} miles.")
         first_decision = st.radio("👉 Do you want to run this exact route?", ["Yes", "No"], key="dest_first_decision_radio")
 
         if first_decision == "Yes":
-            pass  # Done
+            pass
 
         elif first_decision == "No":
             second_decision = st.radio("👉 Do you want to 'extend' the route or make it a 'round trip'?", ["Extend", "Round Trip"], key="dest_second_decision_radio")
@@ -274,31 +274,32 @@ with tab_destination:
                     elevation_data = wr.get_elevation_for_coords(rt_coords)
                     m = wr.plot_route_with_elevation(rt_coords, elevation_data)
 
-                    # Dynamic map height based on route length
                     route_length_miles = wr.calculate_route_distance(rt_coords) / 1609.34
                     map_height = min(800, 400 + int(route_length_miles * 20))
-                    
+
                     map_html = m.get_root().render()
                     html(map_html, height=map_height, scrolling=True)
 
                     wr.print_run_summary(rt_coords, elevation_data, st)
 
                     with st.expander("📈 Elevation Charts (click to expand)"):
-                        fig1 = wr.plot_elevation_area_chart(elevation_data)
-                        st.pyplot(fig1)
-
-                        fig2 = wr.plot_cumulative_elevation_gain(elevation_data)
-                        st.pyplot(fig2)
-
-                        fig3 = wr.plot_moving_average_grade(elevation_data)
-                        st.pyplot(fig3)
+                        st.pyplot(wr.plot_elevation_area_chart(elevation_data))
+                        st.pyplot(wr.plot_cumulative_elevation_gain(elevation_data))
+                        st.pyplot(wr.plot_moving_average_grade(elevation_data))
 
                     wr.save_route_as_gpx(rt_coords, filename="Where2Run_route.gpx")
                     with open("Where2Run_route.gpx", "rb") as file:
                         st.download_button(label="Download GPX", data=file, file_name="Where2Run_route.gpx", key="dest_gpx_download_roundtrip")
 
             elif second_decision == "Extend":
-                target_miles = st.number_input(f"🎯 Enter target total distance (must be >= {st.session_state.dest_one_way_miles:.2f} miles)", min_value=st.session_state.dest_one_way_miles, value=st.session_state.dest_one_way_miles + 2.0, step=0.5, key="dest_target_miles_input")
+                target_miles = st.number_input(
+                    f"🎯 Enter target total distance (must be ≥ {st.session_state.dest_one_way_miles:.2f} miles)",
+                    min_value=st.session_state.dest_one_way_miles,
+                    value=st.session_state.dest_one_way_miles + 2.0,
+                    step=0.5,
+                    key="dest_target_miles_input"
+                )
+
                 if st.button("Generate Extended Destination Route 🚀", key="dest_extend_button"):
                     extended_coords = wr.generate_extended_destination_route(
                         st.session_state.dest_start_coords,
@@ -308,25 +309,19 @@ with tab_destination:
                     if extended_coords:
                         elevation_data = wr.get_elevation_for_coords(extended_coords)
                         m = wr.plot_route_with_elevation(extended_coords, elevation_data)
-                        
-                        # Dynamic map height based on route length
+
                         route_length_miles = wr.calculate_route_distance(extended_coords) / 1609.34
                         map_height = min(800, 400 + int(route_length_miles * 20))
-                        
+
                         map_html = m.get_root().render()
                         html(map_html, height=map_height, scrolling=True)
 
                         wr.print_run_summary(extended_coords, elevation_data, st)
 
                         with st.expander("📈 Elevation Charts (click to expand)"):
-                            fig1 = wr.plot_elevation_area_chart(elevation_data)
-                            st.pyplot(fig1)
-
-                            fig2 = wr.plot_cumulative_elevation_gain(elevation_data)
-                            st.pyplot(fig2)
-
-                            fig3 = wr.plot_moving_average_grade(elevation_data)
-                            st.pyplot(fig3)
+                            st.pyplot(wr.plot_elevation_area_chart(elevation_data))
+                            st.pyplot(wr.plot_cumulative_elevation_gain(elevation_data))
+                            st.pyplot(wr.plot_moving_average_grade(elevation_data))
 
                         wr.save_route_as_gpx(extended_coords, filename="Where2Run_route.gpx")
                         with open("Where2Run_route.gpx", "rb") as file:
