@@ -41,13 +41,13 @@ with tab_loop:
         # 🌉 Bridges preset
         use_preset = st.checkbox("🌉 Include Bridges preset?", key="loop_preset")
 
-        # 🏙️ Route Environment Preference
-        route_env = st.radio(
-            "🏙️ Preferred Route Environment",
-            ["Trail", "Suburban", "Urban", "Scenic", "Shaded"],
-            index=0,
-            key="loop_env"
+         # 🧭 Route Environment Preference (Expanded Options)
+        route_env = st.selectbox(
+            "🌿 Route Environment Preference (Optional)", 
+            ["None", "Prefer Trails", "Scenic", "Shaded", "Suburban", "Urban"], 
+            key="out_env_select"
         )
+        route_env = None if route_env == "None" else route_env.lower()
 
         # 🏁 Destination Location with Mapbox Search
         include_destination = st.checkbox("📍 Include destination on loop?", key="loop_include_dest")
@@ -150,7 +150,7 @@ with tab_out_and_back:
 
         # 🧭 Route Environment Preference (Expanded Options)
         route_env = st.selectbox(
-            "🌿 Route Preference (Optional)", 
+            "🌿 Route Environment Preference (Optional)", 
             ["None", "Prefer Trails", "Scenic", "Shaded", "Suburban", "Urban"], 
             key="out_env_select"
         )
