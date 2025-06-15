@@ -11,15 +11,92 @@ from geopy.distance import geodesic
 # from IPython.display import display -Presence of this code breaks the Streamlit app
 import numpy as np
 import pandas as pd
-import math
 import time
 import random
 from geopy.exc import GeocoderTimedOut
 import streamlit as st
 import requests
 import hashlib
-import os
 import json
+
+
+OVERPASS_CACHE_DIR = "cache/overpass"
+os.makedirs(OVERPASS_CACHE_DIR, exist_ok=True)
+
+OVERPASS_ENDPOINTS = [
+    "https://overpass-api.de/api/interpreter",
+    "https://lz4.overpass-api.de/api/interpreter",
+    "https://z.overpass-api.de/api/interpreter"
+]
+
+def _hash_query(query):
+    return hashlib.md5(query.encode('utf-8')).hexdigest()
+
+def run_overpass_query(query, cache_minutes=60):
+    cache_key = _hash_query(query)
+    cache_path = os.path.join(OVERPASS_CACHE_DIR, f"{cache_key}.json")
+    if os.path.exists(cache_path) and (time.time() - os.path.getmtime(cache_path) < cache_minutes * 60):
+        with open(cache_path, "r") as f:
+            return json.load(f)
+    for endpoint in OVERPASS_ENDPOINTS:
+        try:
+            resp = requests.get(endpoint, params={"data": query}, timeout=30)
+            resp.raise_for_status()
+            result = resp.json()
+            with open(cache_path, "w") as f:
+                json.dump(result, f)
+            return result
+        except Exception as e:
+            print(f"Overpass API failed at {endpoint}: {e}")
+    return None
+
+def has_matching_environment(lat, lon, mode="suburban", radius=300):
+    tag_templates = {
+        "trail": [
+            'way["highway"~"path|footway|bridleway"](around:{radius},{lat},{lon});',
+            'way["surface"~"dirt|gravel|unpaved"](around:{radius},{lat},{lon});',
+            'way["leisure"="park"](around:{radius},{lat},{lon});'
+        ],
+        "suburban": ['way["highway"="residential"](around:{radius},{lat},{lon});'],
+        "urban": ['way["highway"~"primary|secondary|tertiary"](around:{radius},{lat},{lon});'],
+        "scenic": [
+            'way["leisure"="park"](around:{radius},{lat},{lon});',
+            'way["natural"~"wood|water"](around:{radius},{lat},{lon});',
+            'way["tourism"~"viewpoint"](around:{radius},{lat},{lon});'
+        ],
+        "shaded": [
+            'way["natural"="wood"](around:{radius},{lat},{lon});',
+            'way["landuse"="forest"](around:{radius},{lat},{lon});'
+        ]
+    }
+    tags = "\n".join(tag_templates.get(mode.lower(), [])).format(lat=lat, lon=lon, radius=radius)
+    query = f"[out:json][timeout:25];({tags});out center;"
+    result = run_overpass_query(query)
+    return bool(result and result.get("elements"))
+
+def try_route_with_fallback(route_fn, *args, route_environment="Trail", **kwargs):
+    lat, lon = kwargs.get("start_coords", (None, None))
+    if route_environment.lower() == "trail":
+        profile = "foot-hiking" if has_matching_environment(lat, lon, mode="trail") else "foot-walking"
+    elif route_environment.lower() == "suburban":
+        profile = "foot-walking" if has_matching_environment(lat, lon, mode="suburban") else "foot-walking"
+    elif route_environment.lower() == "urban":
+        profile = "foot-walking" if has_matching_environment(lat, lon, mode="urban") else "foot-walking"
+    elif route_environment.lower() == "scenic":
+        profile = "foot-hiking" if has_matching_environment(lat, lon, mode="scenic") else "foot-walking"
+    elif route_environment.lower() == "shaded":
+        profile = "foot-hiking" if has_matching_environment(lat, lon, mode="shaded") else "foot-walking"
+    else:
+        profile = "foot-walking"
+
+    try:
+        return route_fn(*args, profile=profile, **kwargs)
+    except Exception as e:
+        print(f"Routing failed with profile={profile}, retrying with foot-walking. Error: {e}")
+        return route_fn(*args, profile="foot-walking", **kwargs)
+
+
+
 
 # 🔑 OpenRouteService API
 API_KEY = st.secrets["ORS_API_KEY"]
@@ -47,101 +124,6 @@ selected = st.selectbox("Choose a location", suggestions) if suggestions else No
 if selected:
     st.write("✅ Selected:", selected)
 
-# Overpass cache setup
-OVERPASS_CACHE_DIR = "cache/overpass"
-os.makedirs(OVERPASS_CACHE_DIR, exist_ok=True)
-
-def _hash_query(query: str) -> str:
-    return hashlib.md5(query.encode('utf-8')).hexdigest()
-    
-OVERPASS_ENDPOINTS = [
-    "https://overpass-api.de/api/interpreter",
-    "https://lz4.overpass-api.de/api/interpreter",
-    "https://z.overpass-api.de/api/interpreter"
-]
-
-def run_overpass_query(query: str, cache_minutes=60):
-    cache_key = _hash_query(query)
-    cache_path = os.path.join(OVERPASS_CACHE_DIR, f"{cache_key}.json")
-
-    if os.path.exists(cache_path):
-        if time.time() - os.path.getmtime(cache_path) < cache_minutes * 60:
-            with open(cache_path, "r") as f:
-                return json.load(f)
-
-    print("📡 Querying Overpass API...")
-    for endpoint in OVERPASS_ENDPOINTS:
-        try:
-            response = requests.get(endpoint, params={"data": query}, timeout=30)
-            response.raise_for_status()
-            result = response.json()
-
-            with open(cache_path, "w") as f:
-                json.dump(result, f)
-
-            print(f"✅ Overpass response from: {endpoint}")
-            return result
-        except Exception as e:
-            print(f"❌ Failed with endpoint {endpoint}: {e}")
-
-    print("❌ All Overpass endpoints failed.")
-    return None
-
-
-def has_matching_environment(lat, lon, mode="suburban", radius=300):
-    if not lat or not lon:
-        st.warning("⚠️ Invalid coordinates provided for environment check.")
-        return False
-
-    tag_templates = {
-        "trail": [
-            'way["highway"~"path|footway|bridleway"](around:{radius},{lat},{lon});',
-            'way["natural"~"wood|scrub|grassland"](around:{radius},{lat},{lon});',
-            'way["surface"~"unpaved|dirt|grass"](around:{radius},{lat},{lon});',
-            'way["leisure"="park"](around:{radius},{lat},{lon});'
-        ],
-        "suburban": [
-            'way["highway"="residential"](around:{radius},{lat},{lon});'
-        ],
-        "urban": [
-            'way["highway"~"primary|secondary|tertiary"](around:{radius},{lat},{lon});'
-        ],
-        "scenic": [
-            'way["leisure"="park"](around:{radius},{lat},{lon});',
-            'way["natural"~"wood|water|scrub"](around:{radius},{lat},{lon});',
-            'way["tourism"~"attraction|viewpoint"](around:{radius},{lat},{lon});'
-        ],
-        "shaded": [
-            'way["natural"="wood"](around:{radius},{lat},{lon});',
-            'way["landuse"="forest"](around:{radius},{lat},{lon});',
-            'way["highway"]["tree_row"](around:{radius},{lat},{lon});'
-        ]
-    }
-
-    if mode not in tag_templates:
-        st.warning(f"⚠️ Unrecognized environment mode: {mode}")
-        return False
-
-    tag_query = "\n".join(tag_templates[mode]).format(radius=radius, lat=lat, lon=lon)
-
-    query = f"""
-        [out:json][timeout:25];
-        (
-            {tag_query}
-        );
-        out center;
-    """
-
-    data = run_overpass_query(query)
-
-    if data is None:
-        st.warning("⚠️ Overpass API error: Unable to check environment. Defaulting to safe route.")
-        return False
-
-    return bool(data.get("elements"))
-
-
-
 def get_coords_from_place_name(place_name):
     url = f"https://api.mapbox.com/geocoding/v5/mapbox.places/{place_name}.json"
     params = {"access_token": st.secrets["MAPBOX_TOKEN"], "limit": 1}
@@ -165,72 +147,6 @@ def search_places(query):
 
     # ✅ This format shows only the name in UI but returns lat/lon
     return [(f["place_name"], tuple(f["center"][::-1])) for f in results]
-
-# Helper Function for Environment-Based Routing Profile Selection
-def try_route_with_fallback(route_fn, *args, route_environment="Trail", **kwargs):
-    lat, lon = kwargs.get("start_coords", (None, None))
-
-    def check_env_and_set(mode, hiking_if_available=False, info_msg=None, fallback_msg=None):
-        if has_matching_environment(lat, lon, mode=mode):
-            if hiking_if_available:
-                return "foot-hiking"
-            return "foot-walking"
-        else:
-            if fallback_msg:
-                st.info(fallback_msg)
-            return "foot-walking"
-
-    # Handle each environment type
-    if route_environment == "Trail":
-        profile = check_env_and_set("trail", hiking_if_available=True,
-                                     fallback_msg="Trail routes weren't available — generated using nearby paths.")
-    elif route_environment == "Suburban":
-        profile = check_env_and_set("suburban", info_msg="Using neighborhood streets.",
-                                     fallback_msg="Neighborhood streets limited — route may include nearby roads.")
-    elif route_environment == "Urban":
-        profile = check_env_and_set("urban", info_msg="Using main roads.",
-                                     fallback_msg="Urban areas limited nearby — route may use quieter streets.")
-    elif route_environment == "Scenic":
-        profile = check_env_and_set("scenic", hiking_if_available=True,
-                                     fallback_msg="Scenic areas not detected — generated using best available route.")
-    elif route_environment == "Shaded":
-        profile = check_env_and_set("shaded", hiking_if_available=True,
-                                     fallback_msg="Shaded areas not detected — generated using best available route.")
-    else:
-        profile = "foot-walking"
-
-    try:
-        return route_fn(*args, profile=profile, **kwargs), profile
-    except Exception:
-        st.info("Default pedestrian route used due to routing issues.")
-        return route_fn(*args, profile="foot-walking", **kwargs), "foot-walking"
-
-# Legacy version of display_route_results (likely from your early notebook version)
-def display_route_results(route_coords, st):
-    import folium
-    from folium.plugins import MarkerCluster
-    from streamlit_folium import st_folium
-    import matplotlib.pyplot as plt
-    from geopy.distance import geodesic
-
-    if not route_coords:
-        st.error("❌ No route generated.")
-        return
-
-    # Map
-    m = folium.Map(location=route_coords[0], zoom_start=14)
-    folium.PolyLine(route_coords, color="blue", weight=4).add_to(m)
-    folium.Marker(route_coords[0], tooltip="Start", icon=folium.Icon(color="green")).add_to(m)
-    folium.Marker(route_coords[-1], tooltip="End", icon=folium.Icon(color="red")).add_to(m)
-    st_folium(m, width=700, height=500)
-
-    # Distance
-    total_miles = sum(
-        geodesic(route_coords[i], route_coords[i+1]).miles
-        for i in range(len(route_coords) - 1)
-    )
-    st.success(f"✅ Route generated! Total distance: {total_miles:.2f} miles")
-
 
 # 📄 Load Bridges Preset CSV
 bridges_preset = pd.read_csv("Preset Routes/bridges_preset_route.csv")
@@ -260,19 +176,20 @@ def calculate_route_distance(coords):
         total_distance += geodesic(coords[i], coords[i + 1]).meters
     return total_distance
 
-# 🔁 Loop Route Generator with Retry and Error Margin
-def generate_loop_route_with_preset_retry(start_coords, distance_miles, bridges_coords=None, max_attempts=8, profile=None, route_environment=None):
+def generate_loop_route_with_preset_retry(start_coords, distance_miles, bridges_coords=None, max_attempts=8, profile="foot-walking", route_environment=None):
+    # If environment preference is specified, reroute this call through the fallback mechanism
     if route_environment:
-        def inner_loop_route(profile, **kwargs):
+        def inner(profile_override):
             return generate_loop_route_with_preset_retry(
                 start_coords=start_coords,
                 distance_miles=distance_miles,
                 bridges_coords=bridges_coords,
                 max_attempts=max_attempts,
-                profile=profile
+                profile=profile_override
             )
-        return try_route_with_fallback(inner_loop_route, start_coords=start_coords, route_environment=route_environment)[0]
+        return try_route_with_fallback(inner, start_coords=start_coords, route_environment=route_environment)
 
+    # Proceed with original routing logic using provided profile
     original_target_meters = distance_miles * 1609.34
     allowed_range = (original_target_meters - 1207, original_target_meters + 1207)
     reduction_factor = 0.85
@@ -333,12 +250,11 @@ def generate_loop_route_with_preset_retry(start_coords, distance_miles, bridges_
                 attempt += 1
 
         except Exception as e:
-            print(f"❌ Error generating loop route (Attempt {attempt+1}):", e)
+            print(f"❌ Error generating loop route (Attempt {attempt + 1}):", e)
             attempt += 1
 
     print("⚠️ Returning best-effort route despite missed margin.")
     return route_coords if route_coords else None
-
 
 
 # 🚩 Loop-with-Destination v3 — Smart Loop + Destination + Return
@@ -443,7 +359,10 @@ def generate_loop_with_included_destination_v3(start_coords, target_miles, dest_
 
 
 # 🚩 Out-and-Back with Forced Directional Waypoint (Midpoint Waypoint Method)
-def generate_out_and_back_directional_route(start_coords, distance_miles, direction, profile="foot-walking", max_attempts=5):
+def generate_out_and_back_directional_route(start_coords, distance_miles, direction, max_attempts=5):
+    import math
+    import time
+    import random
 
     target_total_meters = distance_miles * 1609.34
     half_meters = target_total_meters / 2
@@ -463,6 +382,7 @@ def generate_out_and_back_directional_route(start_coords, distance_miles, direct
 
     while attempt < max_attempts:
         try:
+            # 🎲 Add random jitter ±15° to heading
             jitter_deg = random.uniform(-15, 15)
             heading_deg = (heading_deg_base + jitter_deg) % 360
 
@@ -478,14 +398,14 @@ def generate_out_and_back_directional_route(start_coords, distance_miles, direct
             midpoint = (start_coords[0] + delta_lat, start_coords[1] + delta_lon)
             print(f"📍 Midpoint forced at approx {midpoint}")
 
-            # Use dynamic profile (hiking or walking)
+            # Path: start → midpoint → start
             route = client.directions(
                 coordinates=[
                     (start_coords[1], start_coords[0]),
                     (midpoint[1], midpoint[0]),
                     (start_coords[1], start_coords[0])
                 ],
-                profile=profile,
+                profile="foot-walking",
                 format="geojson"
             )
             coords = [(pt[1], pt[0]) for pt in route["features"][0]["geometry"]["coordinates"]]
@@ -514,7 +434,6 @@ def generate_out_and_back_directional_route(start_coords, distance_miles, direct
     if best_coords:
         print(f"⚠️ Best effort route distance: {best_total_meters / 1609.34:.2f} miles")
     return best_coords if best_coords else None
-
 
 
 # 🚩 Destination Route Generator
@@ -548,13 +467,13 @@ def generate_destination_round_trip(start_coords, dest_coords):
         return None
 
 # 🚩 Improved Destination Extension Route with Retry + Margin + Detailed Distance Print
-def generate_extended_destination_route(start_coords, dest_coords, target_miles, prefer_trails=False, max_attempts=5):
+def generate_extended_destination_route(start_coords, dest_coords, target_miles, max_attempts=5):
     target_total_meters = target_miles * 1609.34
     allowed_range = (target_total_meters - 1207, target_total_meters + 1207)
     attempt = 0
-    reduction_factor = 0.85
+    reduction_factor = 0.85  # same starting factor as loop routes
 
-    # Get direct route to destination (always foot-walking for optimality)
+    # Calculate one-way distance first
     to_dest_route = client.directions(
         coordinates=[(start_coords[1], start_coords[0]), (dest_coords[1], dest_coords[0])],
         profile="foot-walking",
@@ -564,53 +483,58 @@ def generate_extended_destination_route(start_coords, dest_coords, target_miles,
     to_dest_meters = calculate_route_distance(to_dest_coords)
 
     loop_length_meters = max((target_total_meters - to_dest_meters), 500)
+
     best_coords = None
     best_total_meters = 0
 
-    def generate_loop(profile):
-        return client.directions(
-            coordinates=[(start_coords[1], start_coords[0])],
-            profile=profile,
-            format="geojson",
-            options={
-                "round_trip": {
-                    "length": loop_length_meters,
-                    "points": 20,
-                    "seed": random.randint(0, 10000)
-                }
-            }
-        )
-
     while attempt < max_attempts:
         try:
-            print(f"🔄 Attempt {attempt+1}: Generating loop of ~{loop_length_meters / 1609:.2f} miles then to destination.")
+            print(f"🔄 Attempt {attempt+1}: Generating loop of ~{loop_length_meters / 1609:.2f} miles at start, then to destination.")
 
-            loop_response, profile_used = try_route_with_fallback(generate_loop, prefer_trails=prefer_trails)
-            loop_coords = [(pt[1], pt[0]) for pt in loop_response["features"][0]["geometry"]["coordinates"]]
+            # Generate loop first
+            round_trip = client.directions(
+                coordinates=[(start_coords[1], start_coords[0])],
+                profile="foot-walking",
+                format="geojson",
+                options={
+                    "round_trip": {
+                        "length": loop_length_meters,
+                        "points": 20,
+                        "seed": random.randint(0, 10000)
+                    }
+                }
+            )
+            loop_coords = [(pt[1], pt[0]) for pt in round_trip["features"][0]["geometry"]["coordinates"]]
 
+            # Combine full route
             full_coords = loop_coords + to_dest_coords
             total_meters = calculate_route_distance(full_coords)
             total_miles = total_meters / 1609.34
 
-            print(f"📏 Loop: {calculate_route_distance(loop_coords)/1609.34:.2f} mi | Destination leg: {to_dest_meters/1609.34:.2f} mi | Total: {total_miles:.2f} mi")
+            print(f"📏 Total extended loop segment distance: {calculate_route_distance(loop_coords)/1609.34:.2f} miles")
+            print(f"📏 To-destination segment distance: {to_dest_meters/1609.34:.2f} miles")
+            print(f"📏 Total route distance: {total_miles:.2f} miles")
 
+            # Check if within margin
             if allowed_range[0] <= total_meters <= allowed_range[1]:
-                print("🌟 Extended route within range.")
+                print("🌟 Extended route distance within acceptable range.")
                 return full_coords
 
+            # Save best attempt so far
             if best_coords is None or abs(total_meters - target_total_meters) < abs(best_total_meters - target_total_meters):
                 best_coords = full_coords
                 best_total_meters = total_meters
 
+            # Adjust for next attempt
             reduction_factor -= 0.05
             loop_length_meters = max(loop_length_meters * reduction_factor, 500)
             attempt += 1
 
         except Exception as e:
-            print("❌ Error generating loop + destination route:", e)
+            print("❌ Error generating extended destination route:", e)
             attempt += 1
 
-    print("⚠️ Returning best-effort extended route.")
+    print("⚠️ Returning best-effort extended route despite missed margin.")
     return best_coords if best_coords else None
 
 
