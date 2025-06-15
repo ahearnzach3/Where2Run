@@ -7,4 +7,4 @@ geopy
 numpy
 pandas
 streamlit-searchbox
-streamlit-folium
+
