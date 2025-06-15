@@ -37,6 +37,9 @@ with tab_loop:
         # 🌉 Bridges preset
         use_preset = st.checkbox("🌉 Include Bridges preset?", key="loop_preset")
 
+        # 🏞️ Prefer Trails
+        prefer_trails = st.checkbox("🏞️ Prefer trails (use park paths and unpaved trails)", key="loop_trails")
+
         # 🏁 Destination Location with Mapbox Search
         include_destination = st.checkbox("📍 Include destination on loop?", key="loop_include_dest")
         destination_coords = None
@@ -61,24 +64,27 @@ with tab_loop:
             with st.spinner("Generating loop route..."):
                 preset_coords = wr.bridges_route_coords if use_preset else None
                 if include_destination and destination_coords:
-                    route_coords = wr.generate_loop_with_included_destination_v3(
+                    route_coords, _ = wr.try_route_with_fallback(
+                        wr.generate_loop_with_included_destination_v3,
                         start_coords=start_coords,
                         target_miles=distance_miles,
                         dest_coords=destination_coords,
-                        bridges_coords=preset_coords
+                        bridges_coords=preset_coords,
+                        prefer_trails=prefer_trails
                     )
                 else:
-                    route_coords = wr.generate_loop_route_with_preset_retry(
+                    route_coords, _ = wr.try_route_with_fallback(
+                        wr.generate_loop_route_with_preset_retry,
                         start_coords=start_coords,
                         distance_miles=distance_miles,
-                        bridges_coords=preset_coords
+                        bridges_coords=preset_coords,
+                        prefer_trails=prefer_trails
                     )
 
                 if route_coords:
                     elevation_data = wr.get_elevation_for_coords(route_coords)
                     m = wr.plot_route_with_elevation(route_coords, elevation_data)
 
-                    # Dynamic map height based on route length
                     route_length_miles = wr.calculate_route_distance(route_coords) / 1609.34
                     map_height = min(800, 400 + int(route_length_miles * 20))
 
@@ -104,6 +110,7 @@ with tab_loop:
                     st.error("❌ Route could not be generated.")
         else:
             st.error("❌ Please enter a valid starting location.")
+
 
 # --- OUT-AND-BACK TAB ---
 with tab_out_and_back:
