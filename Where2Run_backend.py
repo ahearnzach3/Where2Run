@@ -518,12 +518,20 @@ def generate_out_and_back_directional_route(start_coords, distance_miles, direct
     return best_coords if best_coords else None
 
 
-# 🚩 Destination Route Generator
-def generate_destination_route(start_coords, dest_coords):
+# 🚩 Destination Route Generator (with optional smart entry point)
+def generate_destination_route(start_coords, dest_coords, elevation_preference="Normal", destination_label=None):
     try:
+        # Optional: Find better entry point if a label is provided
+        if destination_label:
+            nearest_entry = get_nearest_dest_entry(destination_label, start_coords)
+            if nearest_entry:
+                dest_coords = nearest_entry
+                print(f"📍 Using nearest entry to {destination_label}: {dest_coords}")
+
         route = client.directions(
             coordinates=[(start_coords[1], start_coords[0]), (dest_coords[1], dest_coords[0])],
-            profile="foot-walking", format="geojson"
+            profile="foot-walking",
+            format="geojson"
         )
         coords = [(pt[1], pt[0]) for pt in route["features"][0]["geometry"]["coordinates"]]
         total_meters = calculate_route_distance(coords)
@@ -532,6 +540,7 @@ def generate_destination_route(start_coords, dest_coords):
     except Exception as e:
         print("❌ Error generating destination route:", e)
         return None, 0
+
 
 # 🚩 Round Trip Destination Route
 def generate_destination_round_trip(start_coords, dest_coords):
