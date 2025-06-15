@@ -227,6 +227,7 @@ with tab_destination:
                 route_coords, one_way_miles = wr.generate_destination_route(
                     start_coords,
                     destination_coords,
+                    elevation_preference="Normal",
                     destination_label=destination_label  # 📌 Triggers nearest entry detection
                 )
 
