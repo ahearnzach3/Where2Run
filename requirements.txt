@@ -1,5 +1,5 @@
 streamlit==1.35.0
-openrouteservice==2.3.3
+openrouteservice
 folium
 gpxpy
 matplotlib
@@ -7,4 +7,4 @@ geopy
 numpy
 pandas
 streamlit-searchbox
-rich<14,>=10.14.0
+
