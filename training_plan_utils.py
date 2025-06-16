@@ -1,7 +1,11 @@
+import os
 import json
 from datetime import date, timedelta
 
-def load_training_plan(filepath):
+def load_training_plan(filename):
+    # Safely build the path to the 'plans' folder
+    base_path = os.path.join(os.path.dirname(__file__), "plans")
+    filepath = os.path.join(base_path, filename)
     with open(filepath, 'r') as f:
         return json.load(f)
 
