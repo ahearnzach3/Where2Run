@@ -131,7 +131,7 @@ with tab_out_and_back:
             label="Starting Location",
             key="out_start_search"
         )
-        start_coords = selected_place if selected_place else None
+        start_coords = selected_place["coordinates"] if selected_place and "coordinates" in selected_place else None
 
         distance_miles = st.number_input(
             "📏 Total out-and-back distance (miles)", 
