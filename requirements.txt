@@ -8,3 +8,6 @@ numpy
 pandas
 streamlit-searchbox
 
+# For LocationIQ geocoding API
+requests
+
