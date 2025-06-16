@@ -17,7 +17,7 @@ if plan_type == "Marathon":
     available_plans = [{
         "name": "Hal Higdon Novice 1",
         "description": "Ideal for first-time marathoners or runners getting back into training. Focuses on gradual mileage buildup with 4 weekly runs and a long run on weekends.",
-        "filename": "plans/hal_higdon_novice1.txt",
+        "filename": "plans/hal_higdon_novice1.json",
         "image_url": "https://www.halhigdon.com/wp-content/uploads/2019/12/NOVICE-1-768x994.png"
     }]
 else:
@@ -39,7 +39,7 @@ if available_plans:
     # --- 5. Save to session state ---
     if st.button("📌 Save Training Plan"):
         st.session_state.selected_plan_name = selected_plan
-        st.session_state.selected_plan_path = plan_info["filename"]
+        st.session_state.selected_plan_path = plan_info["filename"].split("/")[-1]
         st.session_state.training_start_date = start_date
         st.success("✅ Training plan saved!")
 
