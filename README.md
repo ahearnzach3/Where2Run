@@ -1,86 +1,69 @@
-# 🏃‍♂️ Where2Run - Run Route Generator
+# Where2Run - Intelligent Route Planning for Runners
 
-**Where2Run** is a simple web app that generates running routes based on your input preferences, using:
+**Where2Run** is a purpose-built running platform that helps athletes plan smarter, more personalized routes based on location, terrain, and training needs.
 
-- 🗺️ **OpenRouteService API** (for routing)
-- 🌍 **OpenStreetMap** (underlying map data)
-- 📈 Elevation charts (from elevation data)
-- 🏃‍♂️ Multiple route types:
-  - 🔁 Loop
-  - ↔️ Out-and-Back
-  - 🏁 Destination-based run
-  - 🎯 Option to extend or round-trip destination runs
+It combines high-quality open-source routing data with real-time logic to generate diverse, environment-aware routes that can be customized by distance, direction, or destination.
 
----
+Core functionality includes:
 
-## 🚀 Live App
-
-👉 [https://where2run-beta.streamlit.app](https://where2run-beta.streamlit.app)
+- Routing powered by OpenRouteService and OpenStreetMap
+- Elevation-aware mapping and distance calibration
+- Multiple route modes:
+  - Loop
+  - Out-and-Back (with directional bias)
+  - Destination-based runs
+  - Extended or round-trip options
 
 ---
 
-## 🛠️ How It Works
+## Live App
 
-### Features:
-
-✅ Enter a starting location (address format recommended)  
-✅ Choose your route type & distance  
-✅ Optional: include a destination or preset route  
-✅ See elevation-colored map and elevation charts  
-✅ Download the route as GPX for your watch or app
+https://where2run-beta.streamlit.app
 
 ---
 
-## 💻 Running Locally
+## Key Features
 
-### Requirements:
-
-- Python 3.8+
-- Packages in `requirements.txt`:
-  - streamlit
-  - openrouteservice
-  - folium
-  - gpxpy
-  - matplotlib
-  - geopy
-  - numpy
-  - pandas
-
-### Setup:
-
-```bash
-git clone https://github.com/ahearnzach3/Where2Run.git
-cd Where2Run
-pip install -r requirements.txt
-streamlit run app.py
-
-## 📌 Notes
-
-Starting location works best with **full street address** (e.g., `400 E Morehead St, Charlotte, NC (Dowd YMCA)`).
-
-Some business names may not resolve due to limitations of the free OpenStreetMap geocoder.
+- Input your starting location (address or coordinates)
+- Select route type and target mileage
+- Optional features:
+  - Add scenic waypoints or destinations
+  - Include preset route segments (e.g., bridge routes)
+  - Filter by route environment (trails, shaded, urban, etc.)
+- Interactive route map with elevation heatmap overlay
+- Downloadable GPX files for watch or app syncing
 
 ---
 
-## ✨ Future Ideas
+## Features in Development
 
-- Safety-focused routing
-- Traffic & obstacle avoidance
-- Shaded & scenic route filters
-- Personalized routes based on user preferences
-- Live re-routing during run
-- Social & community features
+- **Integrated Training Plans**  
+  Supports structured race prep (Marathon, Half) with visual progress tracking and countdown to race day  
+  Future integration with real-world race GPX files and calendar syncing
+
+- **Environment-Based Routing Filters**  
+  Scenic and shaded route logic powered by Overpass API and real-time fallback logic
+
+- **Personalized Route Logic**  
+  Automatically suggest routes based on user behavior and training plan history
 
 ---
 
-## 📜 License
+## Notes
+
+- Start locations work best with full addresses  
+- Some business names may not resolve due to OSM search limitations
+
+---
+
+## License
 
 MIT License
 
 ---
 
-## 🤝 Acknowledgements
+## Acknowledgements
 
-- [OpenRouteService](https://openrouteservice.org)
-- [OpenStreetMap](https://www.openstreetmap.org)
-- Streamlit Cloud for deployment
+- [OpenRouteService](https://openrouteservice.org)  
+- [OpenStreetMap](https://www.openstreetmap.org)  
+- [Streamlit](https://streamlit.io)
