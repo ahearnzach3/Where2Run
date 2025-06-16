@@ -97,69 +97,34 @@ def try_route_with_fallback(route_fn, *args, route_environment="Trail", **kwargs
         print(f"Routing failed with profile={profile}, retrying with foot-walking. Error: {e}")
         return route_fn(*args, profile="foot-walking", **kwargs)
 
-# def get_nearest_dest_entry(destination_name, start_coords):
-#     import urllib.parse
-#     from geopy.distance import geodesic
-
-#     # Step 1: Use Nominatim to get bounding box around destination
-#     nom_url = f"https://nominatim.openstreetmap.org/search?format=json&q={urllib.parse.quote(destination_name)}"
-#     try:
-#         resp = requests.get(nom_url, headers={"User-Agent": "where2run-app"})
-#         data = resp.json()
-#         if not data:
-#             print(f"❌ No geocoding results for: {destination_name}")
-#             return None
-
-#         bbox = data[0]["boundingbox"]  # [south, north, west, east]
-#         lat_min, lat_max = float(bbox[0]), float(bbox[1])
-#         lon_min, lon_max = float(bbox[2]), float(bbox[3])
-#     except Exception as e:
-#         print("❌ Nominatim lookup failed:", e)
-#         return None
-
-#     # Step 2: Overpass query to find entrances or nodes/ways inside the bounding box
-#     query = f"""
-#     [out:json][timeout:25];
-#     (
-#       node["entrance"]({lat_min},{lon_min},{lat_max},{lon_max});
-#       node["highway"="path"]({lat_min},{lon_min},{lat_max},{lon_max});
-#       way["leisure"="park"]({lat_min},{lon_min},{lat_max},{lon_max});
-#     );
-#     out center;
-#     """
-#     overpass_data = run_overpass_query(query)
-#     if not overpass_data or "elements" not in overpass_data:
-#         print("❌ No elements returned from Overpass.")
-#         return None
-
-#     # Step 3: Find closest point to start_coords
-#     nearest = None
-#     min_dist = float("inf")
-
-#     for el in overpass_data["elements"]:
-#         if "lat" in el and "lon" in el:
-#             point = (el["lat"], el["lon"])
-#         elif "center" in el:
-#             point = (el["center"]["lat"], el["center"]["lon"])
-#         else:
-#             continue
-
-#         dist = geodesic(start_coords, point).meters
-#         if dist < min_dist:
-#             min_dist = dist
-#             nearest = point
-
-#     if nearest:
-#         print(f"✅ Nearest point to '{destination_name}' found at {nearest} ({min_dist:.1f} m away)")
-#     else:
-#         print("❌ No valid destination entry points found.")
-
-#     return nearest
-
 
 # 🔑 OpenRouteService API
+# API_KEY = st.secrets["ORS_API_KEY"]
+# client = openrouteservice.Client(key=API_KEY)
+ORS_ENDPOINTS = [
+    "https://api.openrouteservice.org",  # Primary
+    "https://ors.stadiamaps.com/ors"     # Backup (Stadia Maps mirror)
+]
+
 API_KEY = st.secrets["ORS_API_KEY"]
-client = openrouteservice.Client(key=API_KEY)
+
+def get_ors_client():
+    for endpoint in ORS_ENDPOINTS:
+        try:
+            test_url = f"{endpoint}/health"
+            r = requests.get(test_url, timeout=5)
+            if r.status_code == 200 and "ready" in r.text:
+                st.info(f"✅ Using ORS endpoint: {endpoint}")
+                if "stadiamaps" in endpoint:
+                    return openrouteservice.Client(base_url=endpoint)
+                else:
+                    return openrouteservice.Client(key=API_KEY, base_url=endpoint)
+        except:
+            continue
+    raise ConnectionError("❌ All ORS endpoints failed.")
+
+client = get_ors_client()
+
 
 # Mapbox Token for Address Autocompletion
 MAPBOX_TOKEN = st.secrets["MAPBOX_TOKEN"]
