@@ -101,54 +101,6 @@ def try_route_with_fallback(route_fn, *args, route_environment="Trail", **kwargs
 # 🔑 OpenRouteService API
 API_KEY = st.secrets["ORS_API_KEY"]
 client = openrouteservice.Client(key=API_KEY)
-# ORS_ENDPOINTS = [
-#     "https://api.openrouteservice.org",  # Primary
-#     "https://ors.stadiamaps.com/ors"     # Backup (Stadia Maps mirror)
-# ]
-
-# API_KEY = st.secrets["ORS_API_KEY"]
-
-# def get_ors_client():
-#     for endpoint in ORS_ENDPOINTS:
-#         try:
-#             if "stadiamaps" in endpoint:
-#                 client = openrouteservice.Client(base_url=endpoint)
-#             else:
-#                 client = openrouteservice.Client(key=API_KEY, base_url=endpoint)
-
-#             # ✅ Test real routing request with dummy Berlin coordinates
-#             test_coords = ((13.388860, 52.517037), (13.397634, 52.529407))
-#             client.directions(test_coords, profile='foot-walking')
-
-#             st.info(f"✅ Using ORS endpoint: {endpoint}")
-#             return client
-
-#         except Exception as e:
-#             print(f"❌ Failed ORS endpoint: {endpoint} — {e}")
-#             continue
-
-#     raise ConnectionError("❌ All ORS endpoints failed.")
-
-# def get_ors_client():
-#     for endpoint in ORS_ENDPOINTS:
-#         try:
-#             # Use /health endpoint to check service status
-#             health_url = f"{endpoint}/health"
-#             r = requests.get(health_url, timeout=3)
-#             if r.status_code == 200 and "ready" in r.text.lower():
-#                 if "stadiamaps" in endpoint:
-#                     return openrouteservice.Client(base_url=endpoint)
-#                 else:
-#                     return openrouteservice.Client(key=API_KEY, base_url=endpoint)
-#         except Exception as e:
-#             print(f"❌ Failed ORS endpoint: {endpoint} — {e}")
-#             continue
-
-#     raise ConnectionError("❌ All ORS endpoints failed.")
-
-# # Initialize client
-# client = get_ors_client()
-
 
 # Mapbox Token for Address Autocompletion
 MAPBOX_TOKEN = st.secrets["MAPBOX_TOKEN"]
@@ -224,6 +176,7 @@ def calculate_route_distance(coords):
     for i in range(len(coords) - 1):
         total_distance += geodesic(coords[i], coords[i + 1]).meters
     return total_distance
+
 
 def generate_loop_route_with_preset_retry(start_coords, distance_miles, bridges_coords=None, max_attempts=8, profile="foot-walking", route_environment=None):
     if route_environment:
@@ -511,11 +464,11 @@ def generate_loop_with_included_destination_v3(start_coords, target_miles, dest_
 def generate_out_and_back_directional_route(
     start_coords, distance_miles, direction,
     max_attempts=5, profile="foot-walking",
-    route_environment=None
+    route_environment=None, **kwargs  # ✅ Accept extra kwargs for fallback handling
 ):
     # ✅ Fallback wrapper
     if route_environment:
-        def inner(profile, **_):  # ✅ Match loop function pattern
+        def inner(profile, **_):  # ✅ Match fallback pattern
             return generate_out_and_back_directional_route(
                 start_coords=start_coords,
                 distance_miles=distance_miles,
@@ -590,6 +543,7 @@ def generate_out_and_back_directional_route(
     if best_coords:
         print(f"📏 Best effort distance: {best_total_meters / 1609.34:.2f} mi")
     return best_coords
+
 
 
 
