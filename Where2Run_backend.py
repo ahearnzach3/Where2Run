@@ -516,7 +516,7 @@ def generate_out_and_back_directional_route(
     import math
     import time
     import random
-    from . import client as default_client  # fallback import
+
 
     # Use provided client or default one
     client = client or default_client
@@ -529,7 +529,6 @@ def generate_out_and_back_directional_route(
                 direction=direction,
                 max_attempts=max_attempts,
                 profile=profile,
-                client=client  # 🔑 ensure it's passed to fallback too
             )
         return try_route_with_fallback(inner, start_coords=start_coords, route_environment=route_environment)
 
