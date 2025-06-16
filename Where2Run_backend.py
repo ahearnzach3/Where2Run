@@ -513,23 +513,25 @@ def generate_out_and_back_directional_route(
     max_attempts=5, profile="foot-walking",
     route_environment=None
 ):
-
+    # ✅ Fallback wrapper
     if route_environment:
-        def inner(profile, **_):
+        def inner(profile, **_):  # ✅ Match loop function pattern
             return generate_out_and_back_directional_route(
                 start_coords=start_coords,
                 distance_miles=distance_miles,
                 direction=direction,
                 max_attempts=max_attempts,
                 profile=profile,
+                route_environment=None  # ✅ Prevent infinite recursion
             )
         return try_route_with_fallback(inner, start_coords=start_coords, route_environment=route_environment)
 
-    # Proceed with original routing logic using provided profile
+    # ✅ Now proceed with original routing logic
+    import math, time, random
+
     target_total_meters = distance_miles * 1609.34
     half_meters = target_total_meters / 2
     allowed_range = (target_total_meters - 1207, target_total_meters + 1207)
-    attempt = 0
 
     heading_angles = {"n": 0, "e": 90, "s": 180, "w": 270}
     heading_deg_base = heading_angles.get(direction.lower(), None)
@@ -537,29 +539,23 @@ def generate_out_and_back_directional_route(
         print("❌ Invalid direction — must be N/S/E/W.")
         return None
 
-    print(f"🧭 Target direction → {direction.upper()} ({heading_deg_base}° ± cone)")
-
-    best_coords = None
-    best_total_meters = None
+    best_coords, best_total_meters = None, None
+    attempt = 0
 
     while attempt < max_attempts:
         try:
             jitter_deg = random.uniform(-15, 15)
             heading_deg = (heading_deg_base + jitter_deg) % 360
-
-            print(f"🔄 Attempt {attempt+1}: Forcing midpoint at ~{half_meters / 1609:.2f} miles, heading {heading_deg:.1f}°.")
+            print(f"🔄 Attempt {attempt+1}: Forcing heading {heading_deg:.1f}°")
 
             angle_rad = math.radians(heading_deg)
             dx = half_meters * math.sin(angle_rad)
             dy = half_meters * math.cos(angle_rad)
 
-            delta_lat = (dy / 111320)
-            delta_lon = (dx / (40075000 * math.cos(math.radians(start_coords[0])) / 360))
-
+            delta_lat = dy / 111320
+            delta_lon = dx / (40075000 * math.cos(math.radians(start_coords[0])) / 360)
             midpoint = (start_coords[0] + delta_lat, start_coords[1] + delta_lon)
-            print(f"📍 Midpoint forced at approx {midpoint}")
 
-            # Path: start → midpoint → start
             route = client.directions(
                 coordinates=[
                     (start_coords[1], start_coords[0]),
@@ -570,13 +566,12 @@ def generate_out_and_back_directional_route(
                 format="geojson"
             )
             coords = [(pt[1], pt[0]) for pt in route["features"][0]["geometry"]["coordinates"]]
-
             total_meters = calculate_route_distance(coords)
-            total_miles = total_meters / 1609.34
-            print(f"📏 Total out-and-back route distance: {total_miles:.2f} miles")
+
+            print(f"📏 Route distance: {total_meters / 1609.34:.2f} mi")
 
             if allowed_range[0] <= total_meters <= allowed_range[1]:
-                print("🌟 Out-and-back route distance within acceptable range → returning this route.")
+                print("✅ Acceptable range met.")
                 return coords
 
             if best_coords is None or abs(total_meters - target_total_meters) < abs(best_total_meters - target_total_meters if best_total_meters else float('inf')):
@@ -585,16 +580,17 @@ def generate_out_and_back_directional_route(
 
             half_meters = max(half_meters * 0.95, 800)
             attempt += 1
-            time.sleep(0.3)
+            time.sleep(0.2)
 
         except Exception as e:
-            print("❌ Error generating directional Out-and-Back:", e)
+            print(f"❌ Error on attempt {attempt+1}:", e)
             attempt += 1
 
-    print("⚠️ Returning best-effort Out-and-Back route despite missed margin.")
+    print("⚠️ Returning best-effort fallback route.")
     if best_coords:
-        print(f"⚠️ Best effort route distance: {best_total_meters / 1609.34:.2f} miles")
-    return best_coords if best_coords else None
+        print(f"📏 Best effort distance: {best_total_meters / 1609.34:.2f} mi")
+    return best_coords
+
 
 
 # 🚩 Destination Route Generator (simplified – no smart entry point)
