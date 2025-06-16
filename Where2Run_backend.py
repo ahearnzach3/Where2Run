@@ -511,18 +511,11 @@ def generate_loop_with_included_destination_v3(start_coords, target_miles, dest_
 def generate_out_and_back_directional_route(
     start_coords, distance_miles, direction,
     max_attempts=5, profile="foot-walking",
-    route_environment=None, client=None
+    route_environment=None
 ):
-    import math
-    import time
-    import random
-
-
-    # Use provided client or default one
-    client = client or default_client
 
     if route_environment:
-        def inner(profile, client=None, **_):
+        def inner(profile, **_):
             return generate_out_and_back_directional_route(
                 start_coords=start_coords,
                 distance_miles=distance_miles,
