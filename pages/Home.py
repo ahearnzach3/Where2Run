@@ -158,34 +158,45 @@ with tab_out_and_back:
     if st.button("Generate Out-and-Back Route 🚀", key="out_button"):
         if start_coords:
             with st.spinner("Generating out-and-back route..."):
-                route_coords = wr.generate_out_and_back_directional_route(
-                    start_coords=start_coords,
-                    distance_miles=distance_miles,
-                    direction=direction_preference.lower() if direction_preference != "None" else "n",
-                    route_environment=route_env
-                )
-                if route_coords:
-                    elevation_data = wr.get_elevation_for_coords(route_coords)
-                    m = wr.plot_route_with_elevation(route_coords, elevation_data)
+                try:
+                    route_coords = wr.generate_out_and_back_directional_route(
+                        start_coords=start_coords,
+                        distance_miles=distance_miles,
+                        direction=direction_preference.lower() if direction_preference != "None" else "n",
+                        route_environment=route_env
+                    )
+                    if route_coords:
+                        elevation_data = wr.get_elevation_for_coords(route_coords)
+                        m = wr.plot_route_with_elevation(route_coords, elevation_data)
 
-                    route_length_miles = wr.calculate_route_distance(route_coords) / 1609.34
-                    map_height = min(800, 400 + int(route_length_miles * 20))
+                        route_length_miles = wr.calculate_route_distance(route_coords) / 1609.34
+                        map_height = min(800, 400 + int(route_length_miles * 20))
 
-                    map_html = m.get_root().render()
-                    html(map_html, height=map_height, scrolling=True)
+                        map_html = m.get_root().render()
+                        html(map_html, height=map_height, scrolling=True)
 
-                    wr.print_run_summary(route_coords, elevation_data, st)
+                        wr.print_run_summary(route_coords, elevation_data, st)
 
-                    with st.expander("📈 Elevation Charts (click to expand)"):
-                        st.pyplot(wr.plot_elevation_area_chart(elevation_data))
-                        st.pyplot(wr.plot_cumulative_elevation_gain(elevation_data))
-                        st.pyplot(wr.plot_moving_average_grade(elevation_data))
+                        with st.expander("📈 Elevation Charts (click to expand)"):
+                            st.pyplot(wr.plot_elevation_area_chart(elevation_data))
+                            st.pyplot(wr.plot_cumulative_elevation_gain(elevation_data))
+                            st.pyplot(wr.plot_moving_average_grade(elevation_data))
 
-                    wr.save_route_as_gpx(route_coords, filename="Where2Run_route.gpx")
-                    with open("Where2Run_route.gpx", "rb") as file:
-                        st.download_button(label="Download GPX", data=file, file_name="Where2Run_route.gpx", key="out_gpx_download")
-                else:
-                    st.error("❌ Route could not be generated.")
+                        wr.save_route_as_gpx(route_coords, filename="Where2Run_route.gpx")
+                        with open("Where2Run_route.gpx", "rb") as file:
+                            st.download_button(label="Download GPX", data=file, file_name="Where2Run_route.gpx", key="out_gpx_download")
+                    else:
+                        st.error("❌ Route could not be generated.")
+                        st.info("Try changing direction, distance, or environment preference.")
+
+                        # 🔍 Developer debug info (optional, remove for production)
+                        st.code(f"Debug — Start Coords: {start_coords}")
+                except ValueError as ve:
+                    st.error(f"❌ Input error: {ve}")
+                    st.code(f"Start Coords: {start_coords}")
+                except Exception as e:
+                    st.error("❌ Unexpected error occurred during routing.")
+                    st.code(str(e))
         else:
             st.error("❌ Please enter a valid starting location.")
 
