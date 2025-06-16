@@ -99,14 +99,14 @@ def try_route_with_fallback(route_fn, *args, route_environment="Trail", **kwargs
 
 
 # 🔑 OpenRouteService API
-# API_KEY = st.secrets["ORS_API_KEY"]
-# client = openrouteservice.Client(key=API_KEY)
-ORS_ENDPOINTS = [
-    "https://api.openrouteservice.org",  # Primary
-    "https://ors.stadiamaps.com/ors"     # Backup (Stadia Maps mirror)
-]
-
 API_KEY = st.secrets["ORS_API_KEY"]
+client = openrouteservice.Client(key=API_KEY)
+# ORS_ENDPOINTS = [
+#     "https://api.openrouteservice.org",  # Primary
+#     "https://ors.stadiamaps.com/ors"     # Backup (Stadia Maps mirror)
+# ]
+
+# API_KEY = st.secrets["ORS_API_KEY"]
 
 # def get_ors_client():
 #     for endpoint in ORS_ENDPOINTS:
@@ -129,25 +129,25 @@ API_KEY = st.secrets["ORS_API_KEY"]
 
 #     raise ConnectionError("❌ All ORS endpoints failed.")
 
-def get_ors_client():
-    for endpoint in ORS_ENDPOINTS:
-        try:
-            # Use /health endpoint to check service status
-            health_url = f"{endpoint}/health"
-            r = requests.get(health_url, timeout=3)
-            if r.status_code == 200 and "ready" in r.text.lower():
-                if "stadiamaps" in endpoint:
-                    return openrouteservice.Client(base_url=endpoint)
-                else:
-                    return openrouteservice.Client(key=API_KEY, base_url=endpoint)
-        except Exception as e:
-            print(f"❌ Failed ORS endpoint: {endpoint} — {e}")
-            continue
+# def get_ors_client():
+#     for endpoint in ORS_ENDPOINTS:
+#         try:
+#             # Use /health endpoint to check service status
+#             health_url = f"{endpoint}/health"
+#             r = requests.get(health_url, timeout=3)
+#             if r.status_code == 200 and "ready" in r.text.lower():
+#                 if "stadiamaps" in endpoint:
+#                     return openrouteservice.Client(base_url=endpoint)
+#                 else:
+#                     return openrouteservice.Client(key=API_KEY, base_url=endpoint)
+#         except Exception as e:
+#             print(f"❌ Failed ORS endpoint: {endpoint} — {e}")
+#             continue
 
-    raise ConnectionError("❌ All ORS endpoints failed.")
+#     raise ConnectionError("❌ All ORS endpoints failed.")
 
-# Initialize client
-client = get_ors_client()
+# # Initialize client
+# client = get_ors_client()
 
 
 # Mapbox Token for Address Autocompletion
