@@ -5,12 +5,6 @@ import Where2Run_backend as wr
 from streamlit.components.v1 import html
 from streamlit_searchbox import st_searchbox
 
-try:
-    client = wr.get_ors_client()
-except ConnectionError:
-    st.error("🚨 All OpenRouteService servers appear to be down. Please try again later.")
-    st.stop()
-
 # App title
 st.markdown("<h1 style='text-align: center;'>🏃‍♂️ Where2Run - Run Route Generator</h1>", unsafe_allow_html=True)
 st.markdown("### 🚗 Powered by OpenRouteService + OpenStreetMap + Elevation Data")
