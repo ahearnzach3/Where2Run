@@ -132,6 +132,7 @@ with tab_out_and_back:
             key="out_start_search"
         )
         start_coords = selected_place["coordinates"] if selected_place and "coordinates" in selected_place else None
+        st.write("📍 Debug - Start Coords:", start_coords)
 
         distance_miles = st.number_input(
             "📏 Total out-and-back distance (miles)", 
