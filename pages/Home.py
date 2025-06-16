@@ -118,20 +118,22 @@ with tab_loop:
 
 
 
-# --- OUT-AND-BACK TAB ---
 with tab_out_and_back:
     st.markdown("## ↔️ Out-and-Back Route Generator")
     st.markdown("---")
 
     with st.container():
         # 📍 Start Location with Mapbox Searchbox
-        selected_place = st_searchbox(
+        st_searchbox(
             search_function=wr.search_places,
             placeholder="📍 Start typing your location (e.g., 400 E Morehead St, Charlotte, NC)",
             label="Starting Location",
             key="out_start_search"
         )
-        start_coords = selected_place["coordinates"] if selected_place and "coordinates" in selected_place else None
+
+        # ✅ Convert label to (lat, lon) using same method as Loop tab
+        start_label = st.session_state.get("out_start_search", {}).get("result")
+        start_coords = wr.get_coordinates(start_label) if start_label else None
         st.write("📍 Debug - Start Coords:", start_coords)
 
         distance_miles = st.number_input(
