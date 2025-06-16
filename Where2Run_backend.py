@@ -111,18 +111,25 @@ API_KEY = st.secrets["ORS_API_KEY"]
 def get_ors_client():
     for endpoint in ORS_ENDPOINTS:
         try:
-            test_url = f"{endpoint}/health"
-            r = requests.get(test_url, timeout=5)
-            if r.status_code == 200 and "ready" in r.text:
-                st.info(f"✅ Using ORS endpoint: {endpoint}")
-                if "stadiamaps" in endpoint:
-                    return openrouteservice.Client(base_url=endpoint)
-                else:
-                    return openrouteservice.Client(key=API_KEY, base_url=endpoint)
-        except:
+            if "stadiamaps" in endpoint:
+                client = openrouteservice.Client(base_url=endpoint)
+            else:
+                client = openrouteservice.Client(key=API_KEY, base_url=endpoint)
+
+            # ✅ Test real routing request with dummy Berlin coordinates
+            test_coords = ((13.388860, 52.517037), (13.397634, 52.529407))
+            client.directions(test_coords, profile='foot-walking')
+
+            st.info(f"✅ Using ORS endpoint: {endpoint}")
+            return client
+
+        except Exception as e:
+            print(f"❌ Failed ORS endpoint: {endpoint} — {e}")
             continue
+
     raise ConnectionError("❌ All ORS endpoints failed.")
 
+# Initialize client
 client = get_ors_client()
 
 
