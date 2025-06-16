@@ -32,7 +32,9 @@ with tab_loop:
 
         # ✅ Extract label (place_name) from session state and convert via Nominatim
         start_label = st.session_state.get("loop_start_search", {}).get("result")
-        start_coords = wr.get_coordinates(start_label) if start_label else None
+        # start_coords = wr.get_coordinates(start_label) if start_label else None
+        start_coords = wr.get_coordinates(start_label, st) if start_label else None # Temp
+
 
         # 📏 Distance Input
         distance_miles = st.number_input(
