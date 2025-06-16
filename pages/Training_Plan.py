@@ -15,9 +15,9 @@ available_plans = []
 
 if plan_type == "Marathon":
     available_plans = [{
-        "name": "Hal Higdon Novice 1",
+        "name": "First Finish - 18 Week Beginner Marathon Plan",
         "description": "Ideal for first-time marathoners or runners getting back into training. Focuses on gradual mileage buildup with 4 weekly runs and a long run on weekends.",
-        "filename": "plans/hal_higdon_novice1.json",
+        "filename": "plans/First_Finish_18_Week_Beginner_Marathon_Plan.json",
         "image_url": "https://www.halhigdon.com/wp-content/uploads/2019/12/NOVICE-1-768x994.png"
     }]
 else:
@@ -61,4 +61,4 @@ if "selected_plan_name" in st.session_state:
     # Optional: Show today's workout
     plan_data = tp.load_training_plan(st.session_state.selected_plan_path)
     today_summary, today_entry, week_number = tp.get_today_plan(plan_data, st.session_state.training_start_date)
-    st.markdown(f"🏃 **Today’s Workout:** {today_summary}")
+    st.markdown(f"🏃 **Today’s Run:** {today_summary}")
