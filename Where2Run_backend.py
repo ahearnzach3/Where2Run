@@ -464,22 +464,26 @@ def generate_loop_with_included_destination_v3(start_coords, target_miles, dest_
 def generate_out_and_back_directional_route(
     start_coords, distance_miles, direction,
     max_attempts=5, profile="foot-walking",
-    route_environment=None, **kwargs  # ✅ Accept extra kwargs for fallback handling
+    route_environment=None
 ):
+    # ✅ Early sanity check
+    if isinstance(start_coords, str) or not isinstance(start_coords, (list, tuple)) or len(start_coords) != 2:
+        raise ValueError(f"❌ Invalid start_coords: {start_coords} — expected (lat, lon) tuple.")
+
     # ✅ Fallback wrapper
     if route_environment:
-        def inner(profile, **_):  # ✅ Match fallback pattern
+        def inner(profile, **_):  # match try_route_with_fallback signature
             return generate_out_and_back_directional_route(
                 start_coords=start_coords,
                 distance_miles=distance_miles,
                 direction=direction,
                 max_attempts=max_attempts,
                 profile=profile,
-                route_environment=None  # ✅ Prevent infinite recursion
+                route_environment=None  # prevent recursion
             )
         return try_route_with_fallback(inner, start_coords=start_coords, route_environment=route_environment)
 
-    # ✅ Now proceed with original routing logic
+    # ✅ Original routing logic
     import math, time, random
 
     target_total_meters = distance_miles * 1609.34
