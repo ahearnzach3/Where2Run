@@ -134,7 +134,7 @@ with tab_out_and_back:
         # ✅ Convert label to (lat, lon) using same method as Loop tab
         start_label = st.session_state.get("out_start_search", {}).get("result")
         start_coords = wr.get_coordinates(start_label) if start_label else None
-        st.write("📍 Debug - Start Coords:", start_coords)
+        # st.write("📍 Debug - Start Coords:", start_coords)
 
         distance_miles = st.number_input(
             "📏 Total out-and-back distance (miles)", 
