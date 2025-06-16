@@ -22,6 +22,7 @@ import json
 import os
 
 
+
 OVERPASS_CACHE_DIR = "cache/overpass"
 os.makedirs(OVERPASS_CACHE_DIR, exist_ok=True)
 
@@ -153,22 +154,64 @@ def search_places(query):
 bridges_preset = pd.read_csv("Preset Routes/bridges_preset_route.csv")
 bridges_route_coords = list(zip(bridges_preset["Latitude"], bridges_preset["Longitude"]))
 
+
+def locationiq_forward_geocode(place_name):
+    import requests
+    api_key = st.secrets["LOCATIONIQ_API_KEY"]
+    url = f"https://us1.locationiq.com/v1/search?key={api_key}&q={place_name}&format=json"
+    try:
+        response = requests.get(url, timeout=5)
+        response.raise_for_status()
+        data = response.json()
+        return [float(data[0]['lat']), float(data[0]['lon'])]
+    except Exception as e:
+        st.warning(f"LocationIQ error: {e}")
+        return None
+
+CACHE_PATH = "cache/geocode_cache.json"
+
+def load_cache():
+    if os.path.exists(CACHE_PATH):
+        with open(CACHE_PATH, 'r') as f:
+            return json.load(f)
+    return {}
+
+def save_cache(cache):
+    with open(CACHE_PATH, 'w') as f:
+        json.dump(cache, f)
+
+def cached_geocode(place_name, geocode_func):
+    cache = load_cache()
+    if place_name in cache:
+        return cache[place_name]
+    coords = geocode_func(place_name)
+    if coords:
+        cache[place_name] = coords
+        save_cache(cache)
+    return coords
+
+
+# 🌍 OLD Geocoder using Nominatim
+# def get_coordinates(address):
+#     geolocator = Nominatim(user_agent="where2run_geocoder", timeout=5)
+#     for _ in range(3):
+#         try:
+#             location = geolocator.geocode(address)
+#             if location:
+#                 return (location.latitude, location.longitude)
+#         except GeocoderTimedOut:
+#             print("⚠️ Geocoder timed out, retrying...")
+#             time.sleep(2)
+#         except Exception as e:
+#             print(f"⚠️ Geocoder error: {e}")
+#             time.sleep(2)
+#     print("❌ Could not geocode location.")
+#     return None
+
+
 # 🌍 Geocoder
 def get_coordinates(address):
-    geolocator = Nominatim(user_agent="where2run_geocoder", timeout=5)
-    for _ in range(3):
-        try:
-            location = geolocator.geocode(address)
-            if location:
-                return (location.latitude, location.longitude)
-        except GeocoderTimedOut:
-            print("⚠️ Geocoder timed out, retrying...")
-            time.sleep(2)
-        except Exception as e:
-            print(f"⚠️ Geocoder error: {e}")
-            time.sleep(2)
-    print("❌ Could not geocode location.")
-    return None
+    return cached_geocode(address, locationiq_forward_geocode)
 
 # 📏 Route Distance Calculator
 def calculate_route_distance(coords):
