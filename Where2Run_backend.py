@@ -183,9 +183,12 @@ def save_cache(cache):
 def cached_geocode(place_name, geocode_func):
     cache = load_cache()
     if place_name in cache:
+        print(f"🧠 Cache hit: {place_name}")
         return cache[place_name]
+    
     coords = geocode_func(place_name)
     if coords:
+        print(f"💾 Caching result for: {place_name} → {coords}")
         cache[place_name] = coords
         save_cache(cache)
     return coords
