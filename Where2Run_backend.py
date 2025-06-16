@@ -180,15 +180,17 @@ def save_cache(cache):
     with open(CACHE_PATH, 'w') as f:
         json.dump(cache, f)
 
-def cached_geocode(place_name, geocode_func):
+def cached_geocode(place_name, geocode_func, st_feedback=None):
     cache = load_cache()
     if place_name in cache:
-        print(f"🧠 Cache hit: {place_name}")
+        if st_feedback:
+            st_feedback.caption(f"🧠 Cache hit: {place_name}")
         return cache[place_name]
-    
+
     coords = geocode_func(place_name)
     if coords:
-        print(f"💾 Caching result for: {place_name} → {coords}")
+        if st_feedback:
+            st_feedback.caption(f"💾 Caching result for: {place_name} → {coords}")
         cache[place_name] = coords
         save_cache(cache)
     return coords
@@ -213,8 +215,8 @@ def cached_geocode(place_name, geocode_func):
 
 
 # 🌍 Geocoder
-def get_coordinates(address):
-    return cached_geocode(address, locationiq_forward_geocode)
+def get_coordinates(address, st_feedback=None):
+    return cached_geocode(address, locationiq_forward_geocode, st_feedback)
 
 # 📏 Route Distance Calculator
 def calculate_route_distance(coords):
