@@ -420,19 +420,116 @@ def generate_loop_with_included_destination_v3(start_coords, target_miles, dest_
 
 
 # 🚩 Out-and-Back with Forced Directional Waypoint (Midpoint Waypoint Method)
-def generate_out_and_back_directional_route(start_coords, distance_miles, direction, max_attempts=5, profile="foot-walking", route_environment=None):
+# def generate_out_and_back_directional_route(start_coords, distance_miles, direction, max_attempts=5, profile="foot-walking", route_environment=None):
+#     import math
+#     import time
+#     import random
+
+#     if route_environment:
+#         def inner(profile, **_):
+#             return generate_out_and_back_directional_route(
+#                 start_coords=start_coords,
+#                 distance_miles=distance_miles,
+#                 direction=direction,
+#                 max_attempts=max_attempts,
+#                 profile=profile
+#             )
+#         return try_route_with_fallback(inner, start_coords=start_coords, route_environment=route_environment)
+
+#     # Proceed with original routing logic using provided profile
+#     target_total_meters = distance_miles * 1609.34
+#     half_meters = target_total_meters / 2
+#     allowed_range = (target_total_meters - 1207, target_total_meters + 1207)
+#     attempt = 0
+
+#     heading_angles = {"n": 0, "e": 90, "s": 180, "w": 270}
+#     heading_deg_base = heading_angles.get(direction.lower(), None)
+#     if heading_deg_base is None:
+#         print("❌ Invalid direction — must be N/S/E/W.")
+#         return None
+
+#     print(f"🧭 Target direction → {direction.upper()} ({heading_deg_base}° ± cone)")
+
+#     best_coords = None
+#     best_total_meters = None
+
+#     while attempt < max_attempts:
+#         try:
+#             jitter_deg = random.uniform(-15, 15)
+#             heading_deg = (heading_deg_base + jitter_deg) % 360
+
+#             print(f"🔄 Attempt {attempt+1}: Forcing midpoint at ~{half_meters / 1609:.2f} miles, heading {heading_deg:.1f}°.")
+
+#             angle_rad = math.radians(heading_deg)
+#             dx = half_meters * math.sin(angle_rad)
+#             dy = half_meters * math.cos(angle_rad)
+
+#             delta_lat = (dy / 111320)
+#             delta_lon = (dx / (40075000 * math.cos(math.radians(start_coords[0])) / 360))
+
+#             midpoint = (start_coords[0] + delta_lat, start_coords[1] + delta_lon)
+#             print(f"📍 Midpoint forced at approx {midpoint}")
+
+#             # Path: start → midpoint → start
+#             route = client.directions(
+#                 coordinates=[
+#                     (start_coords[1], start_coords[0]),
+#                     (midpoint[1], midpoint[0]),
+#                     (start_coords[1], start_coords[0])
+#                 ],
+#                 profile=profile,
+#                 format="geojson"
+#             )
+#             coords = [(pt[1], pt[0]) for pt in route["features"][0]["geometry"]["coordinates"]]
+
+#             total_meters = calculate_route_distance(coords)
+#             total_miles = total_meters / 1609.34
+#             print(f"📏 Total out-and-back route distance: {total_miles:.2f} miles")
+
+#             if allowed_range[0] <= total_meters <= allowed_range[1]:
+#                 print("🌟 Out-and-back route distance within acceptable range → returning this route.")
+#                 return coords
+
+#             if best_coords is None or abs(total_meters - target_total_meters) < abs(best_total_meters - target_total_meters if best_total_meters else float('inf')):
+#                 best_coords = coords
+#                 best_total_meters = total_meters
+
+#             half_meters = max(half_meters * 0.95, 800)
+#             attempt += 1
+#             time.sleep(0.3)
+
+#         except Exception as e:
+#             print("❌ Error generating directional Out-and-Back:", e)
+#             attempt += 1
+
+#     print("⚠️ Returning best-effort Out-and-Back route despite missed margin.")
+#     if best_coords:
+#         print(f"⚠️ Best effort route distance: {best_total_meters / 1609.34:.2f} miles")
+#     return best_coords if best_coords else None
+
+# 🚩 Out-and-Back with Forced Directional Waypoint (Midpoint Waypoint Method)
+def generate_out_and_back_directional_route(
+    start_coords, distance_miles, direction,
+    max_attempts=5, profile="foot-walking",
+    route_environment=None, client=None
+):
     import math
     import time
     import random
+    from . import client as default_client  # fallback import
+
+    # Use provided client or default one
+    client = client or default_client
 
     if route_environment:
-        def inner(profile, **_):
+        def inner(profile, client=None, **_):
             return generate_out_and_back_directional_route(
                 start_coords=start_coords,
                 distance_miles=distance_miles,
                 direction=direction,
                 max_attempts=max_attempts,
-                profile=profile
+                profile=profile,
+                client=client  # 🔑 ensure it's passed to fallback too
             )
         return try_route_with_fallback(inner, start_coords=start_coords, route_environment=route_environment)
 
@@ -507,29 +604,6 @@ def generate_out_and_back_directional_route(start_coords, distance_miles, direct
         print(f"⚠️ Best effort route distance: {best_total_meters / 1609.34:.2f} miles")
     return best_coords if best_coords else None
 
-
-# 🚩 Destination Route Generator (with optional smart entry point)
-# def generate_destination_route(start_coords, dest_coords, elevation_preference="Normal", destination_label=None):
-#     try:
-#         # Optional: Find better entry point if a label is provided
-#         if destination_label:
-#             nearest_entry = get_nearest_dest_entry(destination_label, start_coords)
-#             if nearest_entry:
-#                 dest_coords = nearest_entry
-#                 print(f"📍 Using nearest entry to {destination_label}: {dest_coords}")
-
-#         route = client.directions(
-#             coordinates=[(start_coords[1], start_coords[0]), (dest_coords[1], dest_coords[0])],
-#             profile="foot-walking",
-#             format="geojson"
-#         )
-#         coords = [(pt[1], pt[0]) for pt in route["features"][0]["geometry"]["coordinates"]]
-#         total_meters = calculate_route_distance(coords)
-#         print(f"📏 Estimated one-way distance: {total_meters / 1609:.2f} miles")
-#         return coords, total_meters / 1609.34
-#     except Exception as e:
-#         print("❌ Error generating destination route:", e)
-#         return None, 0
 
 # 🚩 Destination Route Generator (simplified – no smart entry point)
 def generate_destination_route(start_coords, dest_coords, elevation_preference="Normal"):
