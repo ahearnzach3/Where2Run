@@ -1,3 +1,5 @@
+All Rights Reserved License
+
 Copyright (c) 2025 Zachary Ahearn
 
 Permission is granted to view and use this code for personal, non-commercial purposes only.
@@ -5,3 +7,4 @@ Permission is granted to view and use this code for personal, non-commercial pur
 Commercial use, reproduction, modification, distribution, or creation of derivative works based on this software is strictly prohibited without prior written consent from the author.
 
 This software is provided "as is", without warranty of any kind, express or implied.
+
