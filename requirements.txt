@@ -8,6 +8,7 @@ numpy
 pandas
 streamlit-searchbox
 psycopg2-binary
+sqlalchemy
 
 # For LocationIQ geocoding API
 requests
