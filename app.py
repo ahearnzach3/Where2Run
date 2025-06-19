@@ -1,33 +1,23 @@
 import streamlit as st
-import psycopg2
+from sqlalchemy import create_engine, text
 
 st.set_page_config(page_title="Where2Run", layout="wide")
 st.markdown("# 🏃‍♂️ Where2Run")
 st.markdown("Use the sidebar to navigate to different features.")
 
-
 st.title("🔌 Supabase Connection Test")
 
 try:
-    conn = psycopg2.connect(
-        host=st.secrets["DB_HOST"],
-        database=st.secrets["DB_NAME"],
-        user=st.secrets["DB_USER"],
-        password=st.secrets["DB_PASSWORD"],
-        port=st.secrets["DB_PORT"],
-        sslmode="require",
-        connect_timeout=10
-    )
+    db_url = f"postgresql+psycopg2://{st.secrets['DB_USER']}:{st.secrets['DB_PASSWORD']}@" \
+             f"{st.secrets['DB_HOST']}:{st.secrets['DB_PORT']}/{st.secrets['DB_NAME']}"
 
-    st.success("✅ Connected to Supabase PostgreSQL!")
+    engine = create_engine(db_url, connect_args={"sslmode": "require"})
 
-    # Optional: run a simple query
-    cur = conn.cursor()
-    cur.execute("SELECT version();")
-    version = cur.fetchone()[0]
-    st.code(f"PostgreSQL version: {version}")
-    cur.close()
-    conn.close()
+    with engine.connect() as conn:
+        result = conn.execute(text("SELECT version();"))
+        version = result.fetchone()[0]
+        st.success("✅ Connected to Supabase PostgreSQL!")
+        st.code(f"PostgreSQL version: {version}")
 
 except Exception as e:
     st.error("❌ Connection failed!")
