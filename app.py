@@ -22,3 +22,4 @@ try:
 except Exception as e:
     st.error("❌ Connection failed!")
     st.exception(e)
+
