@@ -76,8 +76,6 @@ I initially set up this project using **Azure PostgreSQL Flexible Server** with 
 
 To ensure consistent performance and usability, I migrated to **Supabase**, which offers reliable public PostgreSQL access, built-in auth, and effortless scaling — all while retaining SQL compatibility.
 
-The original Azure setup, including screenshots and configuration steps, is available in the `/docs` folder for reference.
-
 
 ---
 
