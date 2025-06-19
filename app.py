@@ -6,7 +6,7 @@ st.markdown("# 🏃‍♂️ Where2Run")
 st.markdown("Use the sidebar to navigate to different features.")
 
 
-st.title("🔌 PostgreSQL Connection Test")
+st.title("🔌 Supabase Connection Test")
 
 try:
     conn = psycopg2.connect(
@@ -16,15 +16,16 @@ try:
         password=st.secrets["DB_PASSWORD"],
         port=st.secrets["DB_PORT"],
         sslmode="require",
-        connect_timeout=10  # ⏱ Force timeout if blocked
+        connect_timeout=10
     )
+
+    st.success("✅ Connected to Supabase PostgreSQL!")
+
+    # Optional: run a simple query
     cur = conn.cursor()
     cur.execute("SELECT version();")
-    version = cur.fetchone()
-
-    st.success("✅ Connected to PostgreSQL!")
-    st.code(f"Database version: {version[0]}")
-
+    version = cur.fetchone()[0]
+    st.code(f"PostgreSQL version: {version}")
     cur.close()
     conn.close()
 
