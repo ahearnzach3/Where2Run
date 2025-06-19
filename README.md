@@ -70,6 +70,15 @@ https://where2run-beta.streamlit.app
 - **DevOps**: Streamlit Cloud, GitHub Actions (future)  
 - **Database (In Development)**: Supabase (user auth, caching)
 
+### ⚠️ Why I Switched from Azure to Supabase
+
+I initially set up this project using **Azure PostgreSQL Flexible Server** with the intention of showcasing cloud-native infrastructure skills. However, despite correctly configuring public access, firewall rules, and credentials, Azure’s free-tier PostgreSQL service intermittently timed out when accessed from external apps (like Streamlit Cloud). This is a known issue in certain regions and tiers.
+
+To ensure consistent performance and usability, I migrated to **Supabase**, which offers reliable public PostgreSQL access, built-in auth, and effortless scaling — all while retaining SQL compatibility.
+
+The original Azure setup, including screenshots and configuration steps, is available in the `/docs` folder for reference.
+
+
 ---
 
 ## 🎯 Why I Built This
