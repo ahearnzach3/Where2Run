@@ -19,7 +19,7 @@ Core functionality includes:
 
 ## Live App
 
-https://where2run-beta.streamlit.app
+https://where2run.streamlit.app
 
 ---
 
